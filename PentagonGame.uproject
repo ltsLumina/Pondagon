@@ -1,0 +1,38 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "{FDAD2B3F-4E23-546E-359B-94852A3F2471}",
+  "Category": "",
+  "Description": "",
+  "Modules": [
+    {
+      "Name": "PentagonGame",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ],
+  "Plugins": [
+    {
+      "Name": "ModelingToolsEditorMode",
+      "Enabled": true,
+      "TargetAllowList": [
+        "Editor"
+      ]
+    },
+    {
+      "Name": "GameplayStateTree",
+      "Enabled": true
+    },
+    {
+      "Name": "GameplayAbilities",
+      "Enabled": true
+    },
+    {
+      "Name": "AngelscriptGAS",
+      "Enabled": true
+    },
+    {
+      "Name": "AngelscriptEnhancedInput",
+      "Enabled": true
+    }
+  ]
+}
