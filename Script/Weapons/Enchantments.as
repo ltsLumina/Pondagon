@@ -1,5 +1,28 @@
+enum ERarity
+{
+	Standard,  // Common
+	Enhanced,  // Uncommon
+	Deluxe,    // Rare
+	Superior,  // Epic
+	Prestige,  // Legendary
+	Contraband // Mythic
+}
+
+
+enum EChipExecuteCondition
+{
+	OnFire,
+	OnHit,
+	OnKill,
+	OnPrecisionHit,
+	OnPrecisionKill,
+	OnLastBullet,
+	OnReload,
+	OnShieldDepletion,
+}
+
 UCLASS(Abstract, HideDropdown, NotBlueprintable, Meta = (PrioritizeCategories = "Display"))
-class UWeaponMod : UDataAsset
+class UEnchantment : UDataAsset
 {
 	UPROPERTY(Category = "Display")
 	FText DisplayName;
@@ -14,22 +37,12 @@ class UWeaponMod : UDataAsset
 	ERarity Rarity;
 }
 
-enum ERarity
-{
-	Standard,
-	Enhanced,
-	Deluxe,
-	Superior,
-	Prestige,
-	Contraband
-}
-
 ////// BASE CLASSES ///////
 
 UCLASS(HideDropdown)
-class UUniversalChipMod : UWeaponMod
+class UWeaponEnchantment : UEnchantment
 {
-	UPROPERTY(Category = "Chip")
+	UPROPERTY(Category = "Enchantment")
 	EChipExecuteCondition ExecuteCondition;
 
 	UPROPERTY(NotVisible, BlueprintReadOnly)
@@ -94,16 +107,4 @@ class UUniversalChipMod : UWeaponMod
 	{
 		State = InState;
 	}
-}
-
-enum EChipExecuteCondition
-{
-	OnFire,
-	OnHit,
-	OnKill,
-	OnPrecisionHit,
-	OnPrecisionKill,
-	OnLastBullet,
-	OnReload,
-	OnShieldDepletion,
 }

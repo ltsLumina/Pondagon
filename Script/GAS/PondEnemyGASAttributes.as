@@ -8,8 +8,6 @@ namespace UPondEnemyGASAttributes
 	const FName MaxAmmoName = n"MaxAmmo";
 }
 
-//event void FOnHealthChangedEvent(float32 NewHealth, float32 OldHealth);
-
 class UPondEnemyGASAttributes : UAngelscriptAttributeSet
 {
 	UPROPERTY(BlueprintReadOnly, Category = "Hero Attributes")
@@ -24,6 +22,12 @@ class UPondEnemyGASAttributes : UAngelscriptAttributeSet
 	UPROPERTY(BlueprintReadOnly, Category = "Hero Attributes")
 	FAngelscriptGameplayAttributeData MaxShield;
 
+	UPROPERTY(BlueprintReadOnly, Category = "Events")
+	FOnHealthChanged HealthAttributeChanged;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Events")
+	FOnShieldChanged ShieldAttributeChanged;
+
 	UPondEnemyGASAttributes()
 	{
 		Health.Initialize(100.0f);
@@ -35,46 +39,51 @@ class UPondEnemyGASAttributes : UAngelscriptAttributeSet
 	UFUNCTION(BlueprintOverride)
 	void PreAttributeChange(FGameplayAttribute Attribute, float32& NewValue)
 	{
-		if (Attribute.AttributeName == UPondEnemyGASAttributes::HealthName)
+		if (Attribute.AttributeName == UPondPlayerGASAttributes::HealthName)
 		{
-			NewValue = Math::Clamp(NewValue, 0.0f, MaxHealth.BaseValue);
+			NewValue = Math::Clamp(NewValue, 0.0f, MaxHealth.CurrentValue);
 		}
-		else if (Attribute.AttributeName == UPondEnemyGASAttributes::ShieldName)
+		else if (Attribute.AttributeName == UPondPlayerGASAttributes::ShieldName)
 		{
-			NewValue = Math::Clamp(NewValue, 0.0f, MaxShield.BaseValue);
+			NewValue = Math::Clamp(NewValue, 0.0f, MaxShield.CurrentValue);
 		}
 	}
 
 	UFUNCTION(BlueprintOverride)
 	void PostAttributeChange(FGameplayAttribute Attribute, float OldValue, float NewValue)
 	{
-		if (Attribute.AttributeName == UPondEnemyGASAttributes::HealthName)
+		if (Attribute.AttributeName == UPondPlayerGASAttributes::HealthName)
 		{
-			Health.SetBaseValue(Math::Clamp(NewValue, 0.0f, MaxHealth.BaseValue));
+			//Health.SetBaseValue(Math::Clamp(NewValue, 0.0f, MaxHealth.BaseValue));
+			HealthAttributeChanged.Broadcast(NewValue, OldValue);
 		}
-		else if (Attribute.AttributeName == UPondEnemyGASAttributes::ShieldName)
+		else if (Attribute.AttributeName == UPondPlayerGASAttributes::ShieldName)
 		{
-			Shield.SetBaseValue(Math::Clamp(NewValue, 0.0f, MaxShield.BaseValue));
+			//Shield.SetBaseValue(Math::Clamp(NewValue, 0.0f, MaxShield.BaseValue));
+			ShieldAttributeChanged.Broadcast(NewValue, OldValue);
 		}
 	}
 
+	/**
+	 * CALLED ON THE SERVER ONLY!!
+	 */
 	UFUNCTION(BlueprintOverride)
 	void PostGameplayEffectExecute(FGameplayEffectSpec EffectSpec,
 								   FGameplayModifierEvaluatedData& EvaluatedData,
 								   UAngelscriptAbilitySystemComponent AbilitySystemComponent)
 	{
-		if (EvaluatedData.Attribute.AttributeName == UPondEnemyGASAttributes::HealthName)
+		if (EvaluatedData.Attribute.AttributeName == UPondPlayerGASAttributes::HealthName)
 		{
-			Health.SetCurrentValue(Health.GetCurrentValue());
+			Health.SetCurrentValue(Math::Clamp(Health.CurrentValue, 0, MaxHealth.CurrentValue));
 
-			if (EnemyBase.HealthAttribute <= 0)
+			if (EnemyBase.CurrentHealth <= 0)
 			{
 				EnemyBase.Death();
 			}
 		}
-		else if (EvaluatedData.Attribute.AttributeName == UPondEnemyGASAttributes::ShieldName)
+		else if (EvaluatedData.Attribute.AttributeName == UPondPlayerGASAttributes::ShieldName)
 		{
-			Shield.SetCurrentValue(Shield.GetCurrentValue());
+			Shield.SetCurrentValue(Math::Clamp(Shield.CurrentValue, 0, MaxShield.CurrentValue));
 		}
 	}
 

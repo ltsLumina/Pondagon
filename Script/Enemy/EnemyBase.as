@@ -1,102 +1,60 @@
-class AEnemyBase : APondCharacter
+class AEnemyBase : AAngelscriptGASCharacter
 {
-	UPROPERTY(DefaultComponent)
-	UAngelscriptAbilitySystemComponent AbilitySystem;
-
 	UPROPERTY(Category = "Enemy | GAS", EditDefaultsOnly)
-	TArray<TSubclassOf<UPondAbility>> Abilities;
+	TArray<TSubclassOf<UPondAbility>> InitialAbilities;
 
 	UPROPERTY(Category = "Enemy | GAS", EditConst)
 	UPondEnemyGASAttributes Attributes;
 
-	UPROPERTY(Category = "Enemy | Details")
-	FText EnemyName;
-
-	float GetHealthAttribute() override property
+	// #region Attribute Getters
+	UFUNCTION(BlueprintPure)
+	float GetCurrentHealth() property
 	{
-		return Attributes.Health.GetCurrentValue();
+		return Attributes.Health.CurrentValue;
 	}
 
-	float GetShieldAttribute() override property
+	UFUNCTION(BlueprintPure)
+	float GetBaseHealth() property
 	{
-		return Attributes.Shield.GetCurrentValue();
+		return Attributes.Health.BaseValue;
 	}
+
+	UFUNCTION(BlueprintPure)
+	float GetCurrentShield() property
+	{
+		return Attributes.Shield.CurrentValue;
+	}
+
+	UFUNCTION(BlueprintPure)
+	float GetBaseShield() property
+	{
+		return Attributes.Shield.BaseValue;
+	}
+	// #endregion
 
 	UFUNCTION(BlueprintOverride)
 	void BeginPlay()
 	{
-		for (auto Ability : Abilities)
+		for (auto Ability : InitialAbilities)
 			AbilitySystem.GiveAbility(FGameplayAbilitySpec(Ability, 1, -1));
 
 		Attributes = Cast<UPondEnemyGASAttributes>(AbilitySystem.RegisterAttributeSet(UPondEnemyGASAttributes));
 
+		AbilitySystem.InitAbilityActorInfo(this, this);
+
 #if EDITOR
-		float SpawnHealth = HealthAttribute;
-		float SpawnShield = ShieldAttribute;
+		float SpawnHealth = CurrentHealth;
+		float SpawnShield = CurrentShield;
 		Print(f"Enemy '{ActorNameOrLabel}' has spawned with {SpawnHealth} health and {SpawnShield} Shield.", 1.5f, FLinearColor::Green);
 #endif
 	}
 
-	void ApplyDamage(float Damage) override
+	void Death()
 	{
-		float HealthDamage;
-		float ShieldDamage;
-		CalculateDamageTaken(HealthAttribute, ShieldAttribute, Damage, HealthDamage, ShieldDamage);
-
-		FGameplayEffectSpecHandle HealthHandle = AbilitySystem.MakeOutgoingSpec(UGE_Damage_Health, 1, FGameplayEffectContextHandle());
-		if (HealthHandle.IsValid() && GetHealthAttribute() > 0)
-		{
-			HealthHandle.Spec.SetByCallerMagnitude(GameplayTags::Data_Damage_Health, -HealthDamage);
-			AbilitySystem.ApplyGameplayEffectSpecToSelf(HealthHandle);
-
-			Print(f"Applied {Math::RoundToInt(HealthDamage)} HEALTH damage to {EnemyName}", 1, FLinearColor::DPink);
-		}
-
-		FGameplayEffectSpecHandle ShieldHandle = AbilitySystem.MakeOutgoingSpec(UGE_Damage_Shield, 1, FGameplayEffectContextHandle());
-		if (ShieldHandle.IsValid() && GetShieldAttribute() > 0)
-		{
-			ShieldHandle.Spec.SetByCallerMagnitude(GameplayTags::Data_Damage_Shield, -ShieldDamage);
-			AbilitySystem.ApplyGameplayEffectSpecToSelf(ShieldHandle);
-
-			Print(f"Applied {Math::RoundToInt(ShieldDamage)} Shield damage to {EnemyName}", 1, FLinearColor::Teal);
-		}
-	}
-
-	void ApplyHealing(float HealAmount) override
-	{
-		if (HealthAttribute >= Attributes.MaxHealth.BaseValue)
-			return;
-
-		FGameplayEffectSpecHandle HealHandle = AbilitySystem.MakeOutgoingSpec(UGE_Restore_Health, 1, FGameplayEffectContextHandle());
-		if (HealHandle.IsValid())
-		{
-			HealHandle.Spec.SetByCallerMagnitude(GameplayTags::Data_Damage_Health, HealAmount);
-			AbilitySystem.ApplyGameplayEffectSpecToSelf(HealHandle);
-
-			Print(f"Applied {HealAmount} health healing to {EnemyName}", 5.0f, FLinearColor::Green);
-		}
-	}
-
-	void ApplyShield(float NewAmount) override
-	{
-		float ShieldAmount = NewAmount;
-
-		FGameplayEffectSpecHandle ShieldHandle = AbilitySystem.MakeOutgoingSpec(UGE_Override_Shield, 1, FGameplayEffectContextHandle());
-		if (ShieldHandle.IsValid())
-		{
-			ShieldHandle.Spec.SetByCallerMagnitude(GameplayTags::Data_Damage_Shield, ShieldAmount);
-			AbilitySystem.ApplyGameplayEffectSpecToSelf(ShieldHandle);
-
-			Print(f"Applied {ShieldAmount} Shield to {EnemyName}", 1.0f, FLinearColor::LucBlue);
-		}
-	}
-
-	void Death() override
-	{
-		if (GameplayTags.HasTag(GameplayTags::Character_State_Dead))
+		if (AbilitySystem.HasGameplayTag(GameplayTags::Character_State_Dead))
 			return;
 		else
-			GameplayTags.AddTag(GameplayTags::Character_State_Dead);
+			AbilitySystem.AddLooseGameplayTag(GameplayTags::Character_State_Dead);
 
 		FGameplayEffectQuery Query;
 		for (FActiveGameplayEffectHandle Handle : AbilitySystem.GetActiveEffects(Query))
@@ -104,8 +62,7 @@ class AEnemyBase : APondCharacter
 			AbilitySystem.RemoveActiveGameplayEffect(Handle);
 		}
 
-		OnDeath.Broadcast(DeathInfo);
-
+		PrintWarning("Enemy died!");
 		DestroyActor();
 	}
 };

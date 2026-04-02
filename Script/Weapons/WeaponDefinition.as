@@ -280,7 +280,7 @@ struct FWeaponCoreStats
 	UPROPERTY(BlueprintReadOnly)
 	int Magazine = 27;
 
-	UPROPERTY(BlueprintReadOnly)
+	UPROPERTY(BlueprintReadOnly, Meta = (Units = "%"))
 	float Zoom = 1.4f;
 }
 

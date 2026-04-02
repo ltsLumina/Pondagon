@@ -55,19 +55,19 @@ class UInventoryComponent : UActorComponent
 	 * @param AttachedMods Array of mods to attach when the gun is added.
 	 */
 	UFUNCTION(DisplayName = "Add Weapon (w/ Mods)")
-	UWeaponInstance AddWeaponWithMods(UWeaponDefinition WeaponDef, TArray<TSubclassOf<UUniversalChipMod>> Chips)
+	UWeaponInstance AddWeaponWithMods(UWeaponDefinition WeaponDef, TArray<TSubclassOf<UWeaponEnchantment>> Enchantments)
 	{
 		auto Instance = NewObject(this, UWeaponInstance, FName(f"{WeaponDef.ItemDefinition.DisplayName}"));
 
 		Instance.WeaponDefinition = WeaponDef;
 		Instance.Count = 1;
 
-		for (auto Mod : Chips)
+		for (auto Mod : Enchantments)
 		{
 			if (!IsValid(Mod))
 				continue;
 
-			Instance.AddChip(Mod);
+			Instance.AddEnchantment(Mod);
 		}
 
 		return Instance;

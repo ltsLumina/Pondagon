@@ -4,7 +4,7 @@ class UWeaponInstance : UItemInstance
 	UWeaponDefinition WeaponDefinition;
 
 	UPROPERTY(Category = "Mods")
-	TArray<UUniversalChipMod> Mods;
+	TArray<UEnchantment> Mods;
 
 	UPROPERTY(NotVisible, BlueprintReadOnly)
 	APondCharacter OwningCharacter;
@@ -53,7 +53,7 @@ class UWeaponInstance : UItemInstance
 	}
 
 	UFUNCTION()
-	bool AddChip(TSubclassOf<UUniversalChipMod> ChipClass)
+	bool AddEnchantment(TSubclassOf<UWeaponEnchantment> ChipClass)
 	{
 		auto ModInst = NewObject(this, ChipClass);
 
@@ -97,11 +97,11 @@ class UWeaponInstance : UItemInstance
 	}
 
 	UFUNCTION()
-	bool RemoveMod(UWeaponMod Mod)
+	bool RemoveMod(UEnchantment Mod)
 	{
 		if (Mods.Num() > 0)
 		{
-			Mods.Remove(Cast<UUniversalChipMod>(Mod));
+			Mods.Remove(Cast<UEnchantment>(Mod));
 			return true;
 		}
 
@@ -109,7 +109,7 @@ class UWeaponInstance : UItemInstance
 	}
 
 	UFUNCTION()
-	bool ReplaceMod(UWeaponMod ModToReplace, UWeaponMod Mod)
+	bool ReplaceMod(UEnchantment ModToReplace, UEnchantment Mod)
 	{
 		if (!IsValid(ModToReplace) || !IsValid(Mod))
 		{
@@ -121,7 +121,7 @@ class UWeaponInstance : UItemInstance
 		{
 			if (EquippedMod == ModToReplace)
 			{
-				EquippedMod = Cast<UUniversalChipMod>(Mod);
+				EquippedMod = Cast<UEnchantment>(Mod);
 				return true;
 			}
 		}

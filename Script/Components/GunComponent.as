@@ -53,6 +53,14 @@ struct FBulletHit
 	}
 };
 
+//#region Mixin
+UFUNCTION(BlueprintPure, Meta = (ReturnDisplayName = "Hit Result"))
+mixin FHitResult GetHitResult(FBulletHit BulletHit)
+{
+	return BulletHit.Hit;
+}
+//#endregion
+
 struct FMagazineState
 {
 	UPROPERTY(BlueprintReadOnly)
@@ -98,7 +106,7 @@ class UGunComponent : UActorComponent
 	UFUNCTION(Category = "Gun | Ammo", BlueprintPure)
 	int GetAmmoAttribute() property
 	{
-		return int(PlayerAttributes.CurrentAmmo.CurrentValue);
+		return int(PlayerAttributes.Ammo.CurrentValue);
 	}
 
 	UFUNCTION(Category = "Gun | Ammo", BlueprintPure)
@@ -210,13 +218,13 @@ class UGunComponent : UActorComponent
 
 	UPROPERTY(Category = "Events")
 	FOnPrecisionHit OnPrecisionHit;
-	
+
 	UPROPERTY(Category = "Events")
 	FOnPrecisionKill OnPrecisionKill;
 
 	UPROPERTY(Category = "Events")
 	FOnLastBullet OnLastBullet;
-	
+
 	UPROPERTY(Category = "Events")
 	FOnReload OnReload;
 
@@ -229,7 +237,7 @@ class UGunComponent : UActorComponent
 		OwningHero = Cast<APondHero>(GetOwner());
 
 		PlayerAttributes = Pond::GetPondPlayerStateBase().Attributes;
-		PlayerAttributes.CurrentAmmo.Initialize(WeaponDefinition.MagazineSize);
+		PlayerAttributes.Ammo.Initialize(WeaponDefinition.MagazineSize);
 		PlayerAttributes.MaxAmmo.Initialize(WeaponDefinition.MagazineSize);
 
 		ShootCooldown = 1.0 / WeaponDefinition.FireRate;
@@ -361,9 +369,11 @@ class UGunComponent : UActorComponent
 		BulletHit.Instigator = Instigator;
 		BulletHit.HitCharacter = HitCharacter;
 		BulletHit.WasHeroHit = WasHeroHit;
-		if (HitCharacter != nullptr) BulletHit.IsShieldBreak = Pond::GetPondPlayerStateBase().ShieldAttribute - Damage <= 0 && HitCharacter.GameplayTags.HasTag(GameplayTags::Character_State_HasArmor);
+		if (HitCharacter != nullptr)
+			BulletHit.IsShieldBreak = Pond::GetPondPlayerStateBase().ShieldAttribute - Damage <= 0 && HitCharacter.GameplayTags.HasTag(GameplayTags::Character_State_HasArmor);
 		BulletHit.IsPrecisionHit = LastHit.BoneName == n"Weakpoint";
-		if (HitCharacter != nullptr) BulletHit.IsKill = Pond::GetPondPlayerStateBase().HealthAttribute - Damage <= 0 && !HitCharacter.GameplayTags.HasTag(GameplayTags::Character_State_Dead);
+		if (HitCharacter != nullptr)
+			BulletHit.IsKill = Pond::GetPondPlayerStateBase().HealthAttribute - Damage <= 0 && !HitCharacter.GameplayTags.HasTag(GameplayTags::Character_State_Dead);
 		BulletHit.Damage = Damage;
 		BulletHit.Hit = LastHit;
 
@@ -523,8 +533,8 @@ class UGunComponent : UActorComponent
 			{
 				OnPrecisionKill.Broadcast(BulletHit);
 			}
-			//endregion
-			
+			// endregion
+
 			auto AbilitySystem = Pond::GetPondPlayerStateBase().AbilitySystem;
 			FGameplayEffectSpecHandle CurrentAmmoHandle = AbilitySystem.MakeOutgoingSpec(UGE_Additive_CurrentAmmo, 1, FGameplayEffectContextHandle());
 			if (CurrentAmmoHandle.IsValid() && AmmoAttribute > 0)
@@ -536,13 +546,12 @@ class UGunComponent : UActorComponent
 
 				Print(f"Decremented Current Ammo! ({AmmoAttribute}/{MaxAmmoAttribute})", 1, FLinearColor::DPink);
 
-				//region Magazine Chip Subscribers
+				// region Magazine Chip Subscribers
 				if (AmmoAttribute == 1)
 				{
 					OnLastBullet.Broadcast(MagazineState);
 				}
-				//endregion
-				
+				// endregion
 			}
 
 			RecoilIndex++;

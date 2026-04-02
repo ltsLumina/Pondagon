@@ -6,35 +6,49 @@ class APondPlayerState : APlayerState
 	UPROPERTY(NotVisible, BlueprintReadOnly)
 	UInventoryComponent InventoryComponent;
 	default InventoryComponent = UInventoryComponent::Get(this);
+	//~Components
 
 	UPROPERTY(Category = "Hero | GAS", EditDefaultsOnly)
-	TArray<TSubclassOf<UPondAbility>> Abilities;
+	TArray<TSubclassOf<UPondAbility>> InitialAbilities;
 
 	UPROPERTY(Category = "Hero | GAS", EditConst)
 	UPondPlayerGASAttributes Attributes;
 
-	UPROPERTY(Category = "Hero | GAS", EditConst)
-	FGameplayTagContainer GameplayTags;
-
-	UFUNCTION(Category = "Hero | Health", BlueprintPure)
-	float GetHealthAttribute() property
+	// #region Attribute Getters
+	UFUNCTION(BlueprintPure)
+	float GetCurrentHealth() property
 	{
 		return Attributes.Health.CurrentValue;
 	}
 
-	UFUNCTION(Category = "Hero | Shield", BlueprintPure)
-	float GetShieldAttribute() property
+	UFUNCTION(BlueprintPure)
+	float GetBaseHealth() property
+	{
+		return Attributes.Health.BaseValue;
+	}
+
+	UFUNCTION(BlueprintPure)
+	float GetCurrentShield() property
 	{
 		return Attributes.Shield.CurrentValue;
 	}
 
+	UFUNCTION(BlueprintPure)
+	float GetBaseShield() property
+	{
+		return Attributes.Shield.BaseValue;
+	}
+	// #endregion
+
 	UFUNCTION(BlueprintOverride)
 	void BeginPlay()
 	{
-		for (auto Ability : Abilities)
+		for (auto Ability : InitialAbilities)
 			AbilitySystem.GiveAbility(FGameplayAbilitySpec(Ability, 1, -1));
 
 		Attributes = Cast<UPondPlayerGASAttributes>(AbilitySystem.RegisterAttributeSet(UPondPlayerGASAttributes));
+
+		AbilitySystem.InitAbilityActorInfo(this, Pawn);
 
 #if EDITOR
 		float SpawnHealth = HealthAttribute;
@@ -42,14 +56,13 @@ class APondPlayerState : APlayerState
 		Print(f"{ActorNameOrLabel} has spawned with {SpawnHealth} health and {SpawnShield} Shield.", 1.5f, FLinearColor::Green);
 #endif
 	}
-	
 };
 
 namespace Pond
 {
-    UFUNCTION(BlueprintPure)
-    APondPlayerState GetPondPlayerStateBase()
-    {
-        return Cast<APondPlayerState>(Gameplay::GetPlayerState(0));
-    }
+	UFUNCTION(BlueprintPure)
+	APondPlayerState GetPondPlayerStateBase()
+	{
+		return Cast<APondPlayerState>(Gameplay::GetPlayerState(0));
+	}
 }

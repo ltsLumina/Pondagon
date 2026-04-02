@@ -60,7 +60,7 @@ class UGE_Additive_CurrentAmmo : UPondGameplayEffect
 	default StackingType = EGameplayEffectStackingType::None;
 
 	FGameplayModifierInfo Modifier;
-	default Modifier.Attribute = UAngelscriptAttributeSet::GetGameplayAttribute(UPondPlayerGASAttributes, UPondPlayerGASAttributes::CurrentAmmoName);
+	default Modifier.Attribute = UAngelscriptAttributeSet::GetGameplayAttribute(UPondPlayerGASAttributes, UPondPlayerGASAttributes::AmmoName);
 	default Modifier.ModifierOp = EGameplayModOp::Additive;
 	default Modifier.ModifierMagnitude.MagnitudeCalculationType = EGameplayEffectMagnitudeCalculation::SetByCaller;
 	default Modifier.ModifierMagnitude.SetByCallerMagnitude.DataTag = GameplayTags::Data_Guns_Ammo;
@@ -88,7 +88,7 @@ class UGE_Override_CurrentAmmo : UPondGameplayEffect
 	default StackingType = EGameplayEffectStackingType::None;
 
 	FGameplayModifierInfo Modifier;
-	default Modifier.Attribute = UAngelscriptAttributeSet::GetGameplayAttribute(UPondPlayerGASAttributes, UPondPlayerGASAttributes::CurrentAmmoName);
+	default Modifier.Attribute = UAngelscriptAttributeSet::GetGameplayAttribute(UPondPlayerGASAttributes, UPondPlayerGASAttributes::AmmoName);
 	default Modifier.ModifierOp = EGameplayModOp::Override;
 	default Modifier.ModifierMagnitude.MagnitudeCalculationType = EGameplayEffectMagnitudeCalculation::SetByCaller;
 	default Modifier.ModifierMagnitude.SetByCallerMagnitude.DataTag = GameplayTags::Data_Guns_Ammo;

@@ -4,11 +4,13 @@ namespace UPondPlayerGASAttributes
 	const FName MaxHealthName = n"MaxHealth";
 	const FName ShieldName = n"Shield";
 	const FName MaxShieldName = n"MaxShield";
-	const FName CurrentAmmoName = n"CurrentAmmo";
+	const FName AmmoName = n"Ammo";
 	const FName MaxAmmoName = n"MaxAmmo";
 }
 
-event void FOnHealthChangedEvent(float32 NewHealth, float32 OldHealth);
+event void FOnHealthChanged(float32 NewHealth, float32 OldHealth);
+event void FOnShieldChanged(float32 NewShield, float32 OldShield);
+event void FOnPlayerAmmoChanged(float32 NewAmmo, float32 OldAmmo);
 
 class UPondPlayerGASAttributes : UAngelscriptAttributeSet
 {
@@ -25,10 +27,19 @@ class UPondPlayerGASAttributes : UAngelscriptAttributeSet
 	FAngelscriptGameplayAttributeData MaxShield;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Hero Attributes | Gun")
-	FAngelscriptGameplayAttributeData CurrentAmmo;
+	FAngelscriptGameplayAttributeData Ammo;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Hero Attributes | Gun")
 	FAngelscriptGameplayAttributeData MaxAmmo;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Events")
+	FOnHealthChanged HealthAttributeChanged;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Events")
+	FOnShieldChanged ShieldAttributeChanged;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Events")
+	FOnPlayerAmmoChanged AmmoAttributeChanged;
 
 	UPondPlayerGASAttributes()
 	{
@@ -36,7 +47,7 @@ class UPondPlayerGASAttributes : UAngelscriptAttributeSet
 		MaxHealth.Initialize(100.0f);
 		Shield.Initialize(100.0f);
 		MaxShield.Initialize(100.0f);
-		CurrentAmmo.Initialize(30.0f);
+		Ammo.Initialize(30.0f);
 		MaxAmmo.Initialize(30.0f);
 	}
 
@@ -45,11 +56,11 @@ class UPondPlayerGASAttributes : UAngelscriptAttributeSet
 	{
 		if (Attribute.AttributeName == UPondPlayerGASAttributes::HealthName)
 		{
-			NewValue = Math::Clamp(NewValue, 0.0f, MaxHealth.BaseValue);
+			NewValue = Math::Clamp(NewValue, 0.0f, MaxHealth.CurrentValue);
 		}
 		else if (Attribute.AttributeName == UPondPlayerGASAttributes::ShieldName)
 		{
-			NewValue = Math::Clamp(NewValue, 0.0f, MaxShield.BaseValue);
+			NewValue = Math::Clamp(NewValue, 0.0f, MaxShield.CurrentValue);
 		}
 	}
 
@@ -58,11 +69,18 @@ class UPondPlayerGASAttributes : UAngelscriptAttributeSet
 	{
 		if (Attribute.AttributeName == UPondPlayerGASAttributes::HealthName)
 		{
-			Health.SetBaseValue(Math::Clamp(NewValue, 0.0f, MaxHealth.BaseValue));
+			//Health.SetBaseValue(Math::Clamp(NewValue, 0.0f, MaxHealth.BaseValue));
+			HealthAttributeChanged.Broadcast(NewValue, OldValue);
 		}
 		else if (Attribute.AttributeName == UPondPlayerGASAttributes::ShieldName)
 		{
-			Shield.SetBaseValue(Math::Clamp(NewValue, 0.0f, MaxShield.BaseValue));
+			//Shield.SetBaseValue(Math::Clamp(NewValue, 0.0f, MaxShield.BaseValue));
+			ShieldAttributeChanged.Broadcast(NewValue, OldValue);
+		}
+		else if (Attribute.AttributeName == UPondPlayerGASAttributes::AmmoName)
+		{
+			//Ammo.SetBaseValue(Math::Clamp(NewValue, 0.0f, MaxAmmo.BaseValue));
+			AmmoAttributeChanged.Broadcast(NewValue, OldValue);
 		}
 	}
 
@@ -73,16 +91,16 @@ class UPondPlayerGASAttributes : UAngelscriptAttributeSet
 	{
 		if (EvaluatedData.Attribute.AttributeName == UPondPlayerGASAttributes::HealthName)
 		{
-			Health.SetCurrentValue(Health.GetCurrentValue());
+			Health.SetCurrentValue(Math::Clamp(Health.CurrentValue, 0, MaxHealth.CurrentValue));
 
-			if (Hero.GetHealthAttribute() <= 0)
+			if (Hero.CurrentHealth <= 0)
 			{
 				Hero.Death();
 			}
 		}
 		else if (EvaluatedData.Attribute.AttributeName == UPondPlayerGASAttributes::ShieldName)
 		{
-			Shield.SetCurrentValue(Shield.GetCurrentValue());
+			Shield.SetCurrentValue(Math::Clamp(Shield.CurrentValue, 0, MaxShield.CurrentValue));
 		}
 	}
 
