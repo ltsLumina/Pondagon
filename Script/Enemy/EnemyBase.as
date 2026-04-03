@@ -1,5 +1,8 @@
 class AEnemyBase : AAngelscriptGASCharacter
 {
+	UPROPERTY(Category = "Enemy | Details")
+	UEntityDefinition Definition;
+	
 	UPROPERTY(Category = "Enemy | GAS", EditDefaultsOnly)
 	TArray<TSubclassOf<UPondAbility>> InitialAbilities;
 

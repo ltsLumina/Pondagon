@@ -330,7 +330,7 @@ class UGunComponent : UActorComponent
 	{
 		FVector AimDirection = (GetTargetPoint(MaxDistance) - TraceStart).GetSafeNormal();
 
-		FVector BulletDirection = ApplySpread(AimDirection, CurrentGun.GetSpread(), SpreadData);
+		FVector BulletDirection = ApplySpread(AimDirection, CurrentGun.GetSpread(OwningHero.MovementState), SpreadData);
 
 		FVector End = TraceStart + BulletDirection * MaxDistance;
 

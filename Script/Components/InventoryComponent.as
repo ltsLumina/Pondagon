@@ -52,10 +52,10 @@ class UInventoryComponent : UActorComponent
 
 	/**
 	 * @param WeaponDef The definition of which gun to create an instance of.
-	 * @param AttachedMods Array of mods to attach when the gun is added.
+	 * @param AttachedEnchantments Array of Enchantments to attach when the gun is added.
 	 */
-	UFUNCTION(DisplayName = "Add Weapon (w/ Mods)")
-	UWeaponInstance AddWeaponWithMods(UWeaponDefinition WeaponDef, TArray<TSubclassOf<UWeaponEnchantment>> Enchantments)
+	UFUNCTION(DisplayName = "Add Weapon (w/ Enchantments)")
+	UWeaponInstance AddWeaponWithEnchantments(UWeaponDefinition WeaponDef, TArray<TSubclassOf<UWeaponEnchantment>> Enchantments)
 	{
 		auto Instance = NewObject(this, UWeaponInstance, FName(f"{WeaponDef.ItemDefinition.DisplayName}"));
 

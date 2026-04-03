@@ -3,8 +3,11 @@ class UWeaponInstance : UItemInstance
 	UPROPERTY(Category = "Definition")
 	UWeaponDefinition WeaponDefinition;
 
-	UPROPERTY(Category = "Mods")
-	TArray<UEnchantment> Mods;
+	/**
+	 * The currently applied enchantments to this weapon.
+	 */
+	UPROPERTY(Category = "Enchantments")
+	TArray<UEnchantment> Enchantments;
 
 	UPROPERTY(NotVisible, BlueprintReadOnly)
 	APondCharacter OwningCharacter;
@@ -15,9 +18,8 @@ class UWeaponInstance : UItemInstance
 	// - accuracy helpers
 
 	UFUNCTION(BlueprintPure, Category = "Gun | Accuracy")
-	float GetSpread()
+	float GetSpread(EPondMovementState MovementState)
 	{
-		EPondMovementState MoveState = Pond::GetPondHeroBase(OwningCharacter).MovementState;
 		float Spread;
 
 		switch (MoveState)
@@ -45,83 +47,86 @@ class UWeaponInstance : UItemInstance
 				break;
 		}
 
-		int RecoilIndex = UGunComponent::Get(Pond::GetPondCharacterBase(OwningCharacter)).RecoilIndex;
+		int RecoilIndex = OwningGunComponent.RecoilIndex;
 		Spread = Math::Clamp(Math::Pow(RecoilIndex / 7.0f, 1.8f), 0.25f, 1.0f);
 
 		Print(f"Spread: {Spread} degrees", 1, FLinearColor(0.5, 0.5, 1.0));
 		return Spread;
 	}
 
-	UFUNCTION()
+	// Enchanting
+
+	UFUNCTION(Category = "Enchanting")
 	bool AddEnchantment(TSubclassOf<UWeaponEnchantment> ChipClass)
 	{
 		auto ModInst = NewObject(this, ChipClass);
 
-		if (!Mods.AddUnique(ModInst))
+		if (!Enchantments.AddUnique(ModInst))
 		{
 			PrintError("Cannot add mod! An existing one is already applied.");
 			return false;
 		}
 
-		OwningGunComponent.OnFire.AddUFunction(ModInst, n"UpdateHit");
-		OwningGunComponent.OnReload.AddUFunction(ModInst, n"UpdateState");
-
 		switch (ModInst.ExecuteCondition)
 		{
-			case EChipExecuteCondition::OnFire:
+			case EEnchantmentCondition::OnFire:
 				OwningGunComponent.OnFire.AddUFunction(ModInst, n"OnShot");
 				break;
-			case EChipExecuteCondition::OnHit:
+			case EEnchantmentCondition::OnHit:
 				OwningGunComponent.OnFire.AddUFunction(ModInst, n"OnHit");
 				break;
-			case EChipExecuteCondition::OnKill:
+			case EEnchantmentCondition::OnKill:
 				OwningGunComponent.OnKill.AddUFunction(ModInst, n"OnKill");
 				break;
-			case EChipExecuteCondition::OnPrecisionHit:
+			case EEnchantmentCondition::OnPrecisionHit:
 				OwningGunComponent.OnPrecisionHit.AddUFunction(ModInst, n"OnPrecisionHit");
 				break;
-			case EChipExecuteCondition::OnPrecisionKill:
+			case EEnchantmentCondition::OnPrecisionKill:
 				OwningGunComponent.OnPrecisionKill.AddUFunction(ModInst, n"OnPrecisionKill");
 				break;
-			case EChipExecuteCondition::OnLastBullet:
+			case EEnchantmentCondition::OnLastBullet:
 				OwningGunComponent.OnFire.AddUFunction(ModInst, n"OnLastBullet");
 				break;
-			case EChipExecuteCondition::OnReload:
+			case EEnchantmentCondition::OnReload:
 				OwningGunComponent.OnReload.AddUFunction(ModInst, n"OnReload");
 				break;
-			case EChipExecuteCondition::OnShieldDepletion:
+			case EEnchantmentCondition::OnShieldDepletion:
+				break;
+
+			default:
+				PrintError(f"No Enchantment Execute Condition found on {ModInst.DisplayName}!");
 				break;
 		}
 
 		return true;
 	}
 
-	UFUNCTION()
-	bool RemoveMod(UEnchantment Mod)
+	UFUNCTION(Category = "Enchanting")
+	bool RemoveEnchantment(UEnchantment Enchant)
 	{
-		if (Mods.Num() > 0)
+		if (Enchantments.Num() > 0)
 		{
-			Mods.Remove(Cast<UEnchantment>(Mod));
+			Enchantments.Remove(Cast<UEnchantment>(Enchant));
 			return true;
 		}
 
 		return false;
 	}
 
-	UFUNCTION()
-	bool ReplaceMod(UEnchantment ModToReplace, UEnchantment Mod)
+	UFUNCTION(Category = "Enchanting")
+	bool ReplaceEnchantment(UEnchantment EnchantToReplace, UEnchantment NewEnchant)
 	{
-		if (!IsValid(ModToReplace) || !IsValid(Mod))
+		if (!IsValid(EnchantToReplace) || !IsValid(NewEnchant))
 		{
-			throw("Input paramters are null.");
+			throw("Input parameters are null.");
 			return false;
 		}
 
-		for (auto& EquippedMod : Mods)
+		for (auto& AppliedEnchantment : Enchantments)
 		{
-			if (EquippedMod == ModToReplace)
+			if (AppliedEnchantment == EnchantToReplace)
 			{
-				EquippedMod = Cast<UEnchantment>(Mod);
+				AppliedEnchantment = Cast<UEnchantment>(NewEnchant);
 				return true;
 			}
 		}

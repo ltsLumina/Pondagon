@@ -3,6 +3,30 @@
  */
 namespace HealthUtils
 {
+	UFUNCTION(Category = "Health Utils")
+	float GetCurrentHealth(UAngelscriptAbilitySystemComponent AbilitySystem)
+	{
+		auto Attribute = UAngelscriptAttributeSet::GetGameplayAttribute(UPondPlayerGASAttributes, UPondPlayerGASAttributes::HealthName);
+		if (!IsValid(Attribute))
+		{
+			PrintWarning("Invalid Attribute! - Could not find a health attribute on this AbilitySystem!");
+			return -1;
+		}
+		return Attribute.CurrentValue;
+	}
+
+	UFUNCTION(Category = "Health Utils")
+	float GetBaseHealth(UAngelscriptAbilitySystemComponent AbilitySystem)
+	{
+		auto Attribute = UAngelscriptAttributeSet::GetGameplayAttribute(UPondPlayerGASAttributes, UPondPlayerGASAttributes::HealthName);
+		if (!IsValid(Attribute))
+		{
+			PrintWarning("Invalid Attribute! - Could not find a health attribute on this AbilitySystem!");
+			return -1;
+		}
+		return Attribute.BaseValue;
+	}
+
 	void ApplyDamage(UAngelscriptAbilitySystemComponent AbilitySystem, FAngelscriptGameplayAttributeData HealthAttribute, FAngelscriptGameplayAttributeData ShieldAttribute, float Damage)
 	{
 		float HealthDamage;

@@ -1,4 +1,4 @@
-class UItemDefinition : UDataAsset
+class UItemDefinition : UPrimaryDataAsset
 {
     UPROPERTY(Category = "Display")
     FText DisplayName;

@@ -23,6 +23,9 @@ class APondHero : APondCharacter
 	//~Components
 
 	// Details
+	UPROPERTY(Category = "Player | Details")
+	UEntityDefinition Definition;
+
 	UPROPERTY(Category = "Player | Visuals")
 	UParticleSystem DeathEffect;
 

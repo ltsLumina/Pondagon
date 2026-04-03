@@ -5,31 +5,31 @@ enum EEquipSpeed
 	Instant
 }
 
-class UWeaponDefinition : UDataAsset
+class UWeaponDefinition : UPrimaryDataAsset
 {
-	UPROPERTY(Category = "Definition")
+	UPROPERTY(Category = "Definition", EditDefaultsOnly, BlueprintReadOnly)
 	UItemDefinition ItemDefinition;
 
 	UPROPERTY(Category = "Gun | Stats", EditDefaultsOnly, BlueprintReadOnly)
 	FWeaponStats Stats;
 
 	// - movement
-	UPROPERTY(Category = "Gun | Movement", EditDefaultsOnly, Meta = (ClampMin = "0.1", UIMin = "0.1", UIMax = "6.75", Units = "m/s"))
-	float RunSpeed = 5.4;
+	UPROPERTY(Category = "Gun | Movement", EditDefaultsOnly, BlueprintReadOnly, Meta = (ClampMin = "0.1", UIMin = "0.1", UIMax = "6.75", Units = "m/s"))
+	float RunSpeed = 5.4f;
 
-	UPROPERTY(Category = "Gun | Movement", VisibleAnywhere, BlueprintGetter = "GetWalkSpeed", Meta = (Units = "m/s"))
+	UPROPERTY(Category = "Gun | Movement", VisibleAnywhere, BlueprintReadOnly, BlueprintGetter = "GetWalkSpeed", Meta = (Units = "m/s"))
 	float WalkSpeed;
 	default WalkSpeed = RunSpeed * WalkSpeedRatio;
 
-	UPROPERTY(Category = "Gun | Movement", VisibleAnywhere, BlueprintGetter = "GetCrouchSpeed", Meta = (Units = "m/s"))
+	UPROPERTY(Category = "Gun | Movement", VisibleAnywhere, BlueprintReadOnly, BlueprintGetter = "GetCrouchSpeed", Meta = (Units = "m/s"))
 	float CrouchSpeed;
 	default CrouchSpeed = RunSpeed * CrouchSpeedRatio;
 
-	UPROPERTY(Category = "Gun | Movement", EditDefaultsOnly, Meta = (ClampMin = "0.1", UIMin = "0.1", UIMax = "1", Units = ("x")))
-	float WalkSpeedRatio = 0.80;
+	UPROPERTY(Category = "Gun | Movement", EditDefaultsOnly, BlueprintReadOnly, Meta = (ClampMin = "0.1", UIMin = "0.1", UIMax = "1", Units = ("x")))
+	float WalkSpeedRatio = 0.80f;
 
-	UPROPERTY(Category = "Gun | Movement", EditDefaultsOnly, Meta = (ClampMin = "0.1", UIMin = "0.1", UIMax = "1", Units = ("x")))
-	float CrouchSpeedRatio = 0.40;
+	UPROPERTY(Category = "Gun | Movement", EditDefaultsOnly, BlueprintReadOnly, Meta = (ClampMin = "0.1", UIMin = "0.1", UIMax = "1", Units = ("x")))
+	float CrouchSpeedRatio = 0.40f;
 
 	// - movement helpers
 
@@ -67,11 +67,11 @@ class UWeaponDefinition : UDataAsset
 	}
 
 	// - equip
-	UPROPERTY(Category = "Gun | Equip", EditDefaultsOnly, Meta = (Units = "Seconds"))
+	UPROPERTY(Category = "Gun | Equip", EditDefaultsOnly, BlueprintReadOnly, Meta = (Units = "Seconds"))
 	TMap<EEquipSpeed, float> EquipTimes;
-	default EquipTimes.Add(EEquipSpeed::Normal, 1.0);
-	default EquipTimes.Add(EEquipSpeed::Fast, 0.6);
-	default EquipTimes.Add(EEquipSpeed::Instant, 0.2);
+	default EquipTimes.Add(EEquipSpeed::Normal, 1.0f);
+	default EquipTimes.Add(EEquipSpeed::Fast, 0.6f);
+	default EquipTimes.Add(EEquipSpeed::Instant, 0.2f);
 
 	// - equip helpers
 
@@ -92,6 +92,8 @@ class UWeaponDefinition : UDataAsset
 	 */
 	UPROPERTY(Category = "Gun | Shooting", EditDefaultsOnly, BlueprintReadOnly, Meta = (UIMin = "0.1", UIMax = "30.0"))
 	float FireRate = 9.75;
+
+	UPROPERTY(Category = "Gun | Shooting", EditDefaultsOnly, BlueprintReadOnly)
 
 	// - Accuracy
 

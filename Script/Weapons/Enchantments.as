@@ -9,7 +9,7 @@ enum ERarity
 }
 
 
-enum EChipExecuteCondition
+enum EEnchantmentCondition
 {
 	OnFire,
 	OnHit,
@@ -43,58 +43,45 @@ UCLASS(HideDropdown)
 class UWeaponEnchantment : UEnchantment
 {
 	UPROPERTY(Category = "Enchantment")
-	EChipExecuteCondition ExecuteCondition;
-
-	UPROPERTY(NotVisible, BlueprintReadOnly)
-	FBulletHit Hit;
-
-	UPROPERTY(NotVisible, BlueprintReadOnly)
-	FMagazineState State;
+	EEnchantmentCondition ExecuteCondition;
 
 	UFUNCTION(BlueprintEvent)
 	protected void Apply(FBulletHit InHit, FMagazineState InState)
-	{
-	}
+	{}
 
 	UFUNCTION(BlueprintEvent, DisplayName = "Shot")
 	protected void OnShot(FBulletHit InHit)
-	{
-	}
+	{}
 
 	UFUNCTION(BlueprintEvent, DisplayName = "Hit")
 	protected void OnHit(FBulletHit InHit)
-	{
-	}
+	{}
 
 	UFUNCTION(BlueprintEvent, DisplayName = "Kill")
 	protected void OnKill(FBulletHit InHit)
-	{
-	}
+	{}
 
 	UFUNCTION(BlueprintEvent, DisplayName = "Precision Hit")
 	protected void OnPrecisionHit(FBulletHit InHit)
-	{
-	}
+	{}
 
 	UFUNCTION(BlueprintEvent, DisplayName = "Precision Kill")
 	protected void OnPrecisionKill(FBulletHit InHit)
-	{
-	}
+	{}
 
 	UFUNCTION(BlueprintEvent, DisplayName = "Last Bullet")
 	protected void OnLastBullet(FBulletHit InHit)
-	{
-	}
+	{}
 
 	UFUNCTION(BlueprintEvent, DisplayName = "Reload")
 	protected void OnReload(FMagazineState InState)
-	{
-	}
+	{}
 
 	UFUNCTION(BlueprintEvent)
 	protected void OnShieldDepletion()
-	{
-	}
+	{}
+
+	// Helpers
 
 	UFUNCTION(NotBlueprintCallable)
 	private void UpdateHit(FBulletHit InHit)

@@ -14,6 +14,9 @@ class APondPlayerState : APlayerState
 	UPROPERTY(Category = "Hero | GAS", EditConst)
 	UPondPlayerGASAttributes Attributes;
 
+	UPROPERTY(Category = "Team", BlueprintReadOnly)
+    int RespawnTokens = 1;
+
 	// #region Attribute Getters
 	UFUNCTION(BlueprintPure)
 	float GetCurrentHealth() property
@@ -49,6 +52,8 @@ class APondPlayerState : APlayerState
 		Attributes = Cast<UPondPlayerGASAttributes>(AbilitySystem.RegisterAttributeSet(UPondPlayerGASAttributes));
 
 		AbilitySystem.InitAbilityActorInfo(this, Pawn);
+
+		AbilitySystem.InitStats(UPondPlayerGASAttributes, Cast<APondHero>(Pawn).Definition.AttributeSetDefaultStartingData)
 
 #if EDITOR
 		float SpawnHealth = HealthAttribute;
