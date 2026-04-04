@@ -6,52 +6,52 @@ namespace HealthUtils
 	UFUNCTION(Category = "Health Utils")
 	float GetCurrentHealth(UAngelscriptAbilitySystemComponent AbilitySystem)
 	{
-		auto Attribute = UAngelscriptAttributeSet::GetGameplayAttribute(UPondPlayerGASAttributes, UPondPlayerGASAttributes::HealthName);
-		if (!IsValid(Attribute))
+		auto CurrentHealth = AbilitySystem.GetAttributeCurrentValue(UPlayerAttributes, UPlayerAttributes::HealthName, -1.0f);
+		if (CurrentHealth <= -1.0f)
 		{
 			PrintWarning("Invalid Attribute! - Could not find a health attribute on this AbilitySystem!");
 			return -1;
 		}
-		return Attribute.CurrentValue;
+		return CurrentHealth;
 	}
 
 	UFUNCTION(Category = "Health Utils")
 	float GetBaseHealth(UAngelscriptAbilitySystemComponent AbilitySystem)
 	{
-		auto Attribute = UAngelscriptAttributeSet::GetGameplayAttribute(UPondPlayerGASAttributes, UPondPlayerGASAttributes::HealthName);
-		if (!IsValid(Attribute))
+		auto BaseHealth = AbilitySystem.GetAttributeBaseValue(UPlayerAttributes, UPlayerAttributes::HealthName, -1.0f);
+		if (BaseHealth <= -1.0f)
 		{
 			PrintWarning("Invalid Attribute! - Could not find a health attribute on this AbilitySystem!");
 			return -1;
 		}
-		return Attribute.BaseValue;
+		return BaseHealth;
 	}
 
-	void ApplyDamage(UAngelscriptAbilitySystemComponent AbilitySystem, FAngelscriptGameplayAttributeData HealthAttribute, FAngelscriptGameplayAttributeData ShieldAttribute, float Damage)
+	void ApplyDamage(UAngelscriptAbilitySystemComponent AbilitySystem, float InCurrentHealth, float InCurrentShield, float Damage)
 	{
-		float HealthDamage;
-		float ShieldDamage;
-		HealthUtils::CalculateDamageTaken(HealthAttribute, ShieldAttribute, Damage, HealthDamage, ShieldDamage);
+		float DamageToHealth;
+		float DamageToShield;
+		HealthUtils::CalculateDamageTaken(Damage, InCurrentHealth, InCurrentShield, DamageToHealth, DamageToShield);
 
 		FGameplayEffectSpecHandle HealthHandle = AbilitySystem.MakeOutgoingSpec(UGE_Damage_Health, 1, FGameplayEffectContextHandle());
 		if (HealthHandle.IsValid())
 		{
-			HealthHandle.Spec.SetByCallerMagnitude(GameplayTags::Data_Damage_Health, -HealthDamage);
+			HealthHandle.Spec.SetByCallerMagnitude(GameplayTags::Data_Damage_Health, -DamageToHealth);
 			AbilitySystem.ApplyGameplayEffectSpecToSelf(HealthHandle);
 
 #if EDITOR
-			Print(f"Applied {Math::RoundToInt(HealthDamage)} HEALTH damage to {AbilitySystem.Avatar.ActorNameOrLabel}", 3.0f, FLinearColor::DPink);
+			Print(f"Applied {Math::RoundToInt(DamageToHealth)} HEALTH damage to {AbilitySystem.Avatar.ActorNameOrLabel}", 3.0f, FLinearColor::DPink);
 #endif
 		}
 
 		FGameplayEffectSpecHandle ShieldHandle = AbilitySystem.MakeOutgoingSpec(UGE_Damage_Shield, 1, FGameplayEffectContextHandle());
 		if (ShieldHandle.IsValid())
 		{
-			ShieldHandle.Spec.SetByCallerMagnitude(GameplayTags::Data_Damage_Shield, -ShieldDamage);
+			ShieldHandle.Spec.SetByCallerMagnitude(GameplayTags::Data_Damage_Shield, -DamageToShield);
 			AbilitySystem.ApplyGameplayEffectSpecToSelf(ShieldHandle);
 
 #if EDITOR
-			Print(f"Applied {Math::RoundToInt(ShieldDamage)} Shield damage to {AbilitySystem.Avatar.ActorNameOrLabel}", 3.0f, FLinearColor::Teal);
+			Print(f"Applied {Math::RoundToInt(DamageToShield)} Shield damage to {AbilitySystem.Avatar.ActorNameOrLabel}", 3.0f, FLinearColor::Teal);
 #endif
 		}
 	}
@@ -91,12 +91,12 @@ void ApplyShield(UAngelscriptAbilitySystemComponent AbilitySystem, float ShieldA
 	 * @param DamageToArmor Output parameter for damage applied to armor.
 	 */
 	UFUNCTION(Category = "Agent | Damage")
-	void CalculateDamageTaken(float Damage, FAngelscriptGameplayAttributeData HealthAttribute, FAngelscriptGameplayAttributeData ShieldAttribute, float&out DamageToHealth, float&out DamageToArmor)
+	void CalculateDamageTaken(float Damage, float InCurrentHealth, float InCurrentShield, float&out DamageToHealth, float&out DamageToArmor)
 	{
 		const float ABSORPTION_RATIO = 0.66f;
 
-		float CurrHealth = HealthAttribute.CurrentValue;
-		float CurrArmor = ShieldAttribute.CurrentValue;
+		float CurrHealth = InCurrentHealth;
+		float CurrArmor = InCurrentShield;
 
 		// initialize returned damage values
 		DamageToHealth = 0;

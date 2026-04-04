@@ -4,10 +4,10 @@ class AEnemyBase : AAngelscriptGASCharacter
 	UEntityDefinition Definition;
 	
 	UPROPERTY(Category = "Enemy | GAS", EditDefaultsOnly)
-	TArray<TSubclassOf<UPondAbility>> InitialAbilities;
+	TArray<TSubclassOf<UGameplayAbility>> InitialAbilities;
 
 	UPROPERTY(Category = "Enemy | GAS", EditConst)
-	UPondEnemyGASAttributes Attributes;
+	UEnemyAttributes Attributes;
 
 	// #region Attribute Getters
 	UFUNCTION(BlueprintPure)
@@ -38,10 +38,7 @@ class AEnemyBase : AAngelscriptGASCharacter
 	UFUNCTION(BlueprintOverride)
 	void BeginPlay()
 	{
-		for (auto Ability : InitialAbilities)
-			AbilitySystem.GiveAbility(FGameplayAbilitySpec(Ability, 1, -1));
-
-		Attributes = Cast<UPondEnemyGASAttributes>(AbilitySystem.RegisterAttributeSet(UPondEnemyGASAttributes));
+		Attributes = Cast<UEnemyAttributes>(AbilitySystem.RegisterAttributeSet(UEnemyAttributes));
 
 		AbilitySystem.InitAbilityActorInfo(this, this);
 
@@ -50,6 +47,14 @@ class AEnemyBase : AAngelscriptGASCharacter
 		float SpawnShield = CurrentShield;
 		Print(f"Enemy '{ActorNameOrLabel}' has spawned with {SpawnHealth} health and {SpawnShield} Shield.", 1.5f, FLinearColor::Green);
 #endif
+	}
+
+	UFUNCTION(BlueprintOverride)
+	void PointDamage(float Damage, const UDamageType DamageType, FVector HitLocation, FVector HitNormal,
+					 UPrimitiveComponent HitComponent, FName BoneName, FVector ShotFromDirection,
+					 AController InstigatedBy, AActor DamageCauser, FHitResult HitInfo)
+	{
+		Print("hit enemy!", 1.0f, FLinearColor::Yellow);
 	}
 
 	void Death()

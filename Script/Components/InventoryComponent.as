@@ -6,8 +6,10 @@ class UInventoryComponent : UActorComponent
 	UFUNCTION(BlueprintOverride)
 	void BeginPlay()
 	{
-		auto Player = Gameplay::GetPlayerCharacter(0);
+		auto PS = Cast<APlayerState>(GetOwner());
+		auto Player = PS.Pawn;
 		if (!IsValid(Player)) return;
+		
 		auto GunComponent = UGunComponent::Get(Player);
 
 		check(Player != nullptr);
@@ -28,23 +30,27 @@ class UInventoryComponent : UActorComponent
 		return Instance;
 	}
 
+	/**
+	 *  @TODO Rename to SetWeapon, since this doesn't add *another* weapon to the inventory -- it replaces the current one.
+	 */
 	UFUNCTION()
 	UWeaponInstance AddWeapon(UWeaponDefinition WeaponDef)
 	{
 		auto Instance = NewObject(this, UWeaponInstance, FName(f"{WeaponDef.ItemDefinition.DisplayName}"));
-
-		Instance.WeaponDefinition = WeaponDef;
 		Instance.Count = 1;
 
 		// Owner Initialization
-		APondCharacter OwningCharacter = Cast<APondCharacter>(Gameplay::GetPlayerCharacter(0));
+		auto PS = Cast<APlayerState>(GetOwner());
+		if (!IsValid(PS) || !IsValid(PS.Pawn)) return nullptr;
+		
+		APondCharacter OwningCharacter = Cast<APondCharacter>(PS.Pawn);
 		auto GunComponent = UGunComponent::Get(OwningCharacter);
 
-		Instance.OwningCharacter = OwningCharacter;
-		Instance.OwningGunComponent = GunComponent;
+		// Initialize the instance
+		Instance.InitInstanceInfo(WeaponDef, OwningCharacter, GunComponent);
 
-		// Assign as gun to GunComponent
-		GunComponent.CurrentGun = Instance;
+		// Register to GunComponent
+		GunComponent.RegisterCurrentGun(Instance);
 
 		Backpack.Add(Instance);
 		return Instance;
@@ -57,10 +63,8 @@ class UInventoryComponent : UActorComponent
 	UFUNCTION(DisplayName = "Add Weapon (w/ Enchantments)")
 	UWeaponInstance AddWeaponWithEnchantments(UWeaponDefinition WeaponDef, TArray<TSubclassOf<UWeaponEnchantment>> Enchantments)
 	{
-		auto Instance = NewObject(this, UWeaponInstance, FName(f"{WeaponDef.ItemDefinition.DisplayName}"));
-
-		Instance.WeaponDefinition = WeaponDef;
-		Instance.Count = 1;
+		auto Instance = AddWeapon(WeaponDef);
+		if (!IsValid(Instance)) return nullptr;
 
 		for (auto Mod : Enchantments)
 		{

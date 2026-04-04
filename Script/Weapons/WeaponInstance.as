@@ -7,13 +7,21 @@ class UWeaponInstance : UItemInstance
 	 * The currently applied enchantments to this weapon.
 	 */
 	UPROPERTY(Category = "Enchantments")
-	TArray<UEnchantment> Enchantments;
+	TArray<TSubclassOf<UEnchantment>> Enchantments;
 
 	UPROPERTY(NotVisible, BlueprintReadOnly)
 	APondCharacter OwningCharacter;
 
 	UPROPERTY(NotVisible, BlueprintReadOnly)
 	UGunComponent OwningGunComponent;
+
+	UFUNCTION()
+	void InitInstanceInfo(UWeaponDefinition InWeaponDefinition, AActor OwningActor, UActorComponent OwningComponent)
+	{
+		WeaponDefinition = InWeaponDefinition;
+		OwningCharacter = Cast<APondCharacter>(OwningActor);
+		OwningGunComponent = Cast<UGunComponent>(OwningComponent);
+	}
 
 	// - accuracy helpers
 
@@ -22,7 +30,7 @@ class UWeaponInstance : UItemInstance
 	{
 		float Spread;
 
-		switch (MoveState)
+		switch (MovementState)
 		{
 			case EPondMovementState::Still:
 				Spread = WeaponDefinition.StandingSpread;
@@ -48,7 +56,7 @@ class UWeaponInstance : UItemInstance
 		}
 
 		int RecoilIndex = OwningGunComponent.RecoilIndex;
-		Spread = Math::Clamp(Math::Pow(RecoilIndex / 7.0f, 1.8f), 0.25f, 1.0f);
+		Spread += Math::Clamp(Math::Pow(RecoilIndex / 7.0f, 1.8f), 0.25f, 1.0f);
 
 		Print(f"Spread: {Spread} degrees", 1, FLinearColor(0.5, 0.5, 1.0));
 		return Spread;
@@ -57,56 +65,23 @@ class UWeaponInstance : UItemInstance
 	// Enchanting
 
 	UFUNCTION(Category = "Enchanting")
-	bool AddEnchantment(TSubclassOf<UWeaponEnchantment> ChipClass)
+	bool AddEnchantment(TSubclassOf<UWeaponEnchantment> EnchantmentClass)
 	{
-		auto ModInst = NewObject(this, ChipClass);
-
-		if (!Enchantments.AddUnique(ModInst))
+		if (!Enchantments.AddUnique(EnchantmentClass))
 		{
-			PrintError("Cannot add mod! An existing one is already applied.");
+			PrintError("Cannot add enchantment! An existing one is already applied.");
 			return false;
-		}
-
-		switch (ModInst.ExecuteCondition)
-		{
-			case EEnchantmentCondition::OnFire:
-				OwningGunComponent.OnFire.AddUFunction(ModInst, n"OnShot");
-				break;
-			case EEnchantmentCondition::OnHit:
-				OwningGunComponent.OnFire.AddUFunction(ModInst, n"OnHit");
-				break;
-			case EEnchantmentCondition::OnKill:
-				OwningGunComponent.OnKill.AddUFunction(ModInst, n"OnKill");
-				break;
-			case EEnchantmentCondition::OnPrecisionHit:
-				OwningGunComponent.OnPrecisionHit.AddUFunction(ModInst, n"OnPrecisionHit");
-				break;
-			case EEnchantmentCondition::OnPrecisionKill:
-				OwningGunComponent.OnPrecisionKill.AddUFunction(ModInst, n"OnPrecisionKill");
-				break;
-			case EEnchantmentCondition::OnLastBullet:
-				OwningGunComponent.OnFire.AddUFunction(ModInst, n"OnLastBullet");
-				break;
-			case EEnchantmentCondition::OnReload:
-				OwningGunComponent.OnReload.AddUFunction(ModInst, n"OnReload");
-				break;
-			case EEnchantmentCondition::OnShieldDepletion:
-				break;
-
-			default:
-				PrintError(f"No Enchantment Execute Condition found on {ModInst.DisplayName}!");
-				break;
 		}
 
 		return true;
 	}
 
 	UFUNCTION(Category = "Enchanting")
-	bool RemoveEnchantment(UEnchantment Enchant)
+	bool RemoveEnchantment(TSubclassOf<UEnchantment> EnchantClass)
 	{
 		if (Enchantments.Num() > 0)
 		{
-			Enchantments.Remove(Cast<UEnchantment>(Enchant));
+			Enchantments.Remove(EnchantClass);
 			return true;
 		}
 
@@ -124,10 +99,10 @@ class UWeaponInstance : UItemInstance
 
 		for (auto& AppliedEnchantment : Enchantments)
 		{
-			if (AppliedEnchantment == EnchantToReplace)
+			//if (AppliedEnchantment == EnchantToReplace)
 			{
-				AppliedEnchantment = Cast<UEnchantment>(NewEnchant);
-				return true;
+			//	AppliedEnchantment = Cast<UEnchantment>(NewEnchant);
+		//		return true;
 			}
 		}
 

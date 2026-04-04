@@ -36,9 +36,6 @@ class APondHero : APondCharacter
 	UPROPERTY(Category = "Player | Movement", VisibleInstanceOnly)
 	EPondMovementState PreviousMovementState;
 	default PreviousMovementState = EPondMovementState::Run;
-
-	UPROPERTY(Category = "Character", VisibleInstanceOnly, BlueprintReadOnly)
-	FDeathContext DeathContext;
 	//~Details
 
 	// #region Attribute Getters
@@ -71,7 +68,7 @@ class APondHero : APondCharacter
 	UFUNCTION(BlueprintPure, BlueprintProtected)
 	private APondPlayerState GetPondPlayerState() property
 	{
-		return Pond::GetPondPlayerStateBase();
+		return Cast<APondPlayerState>(PlayerState);
 	}
 
 	UFUNCTION(BlueprintPure)
@@ -81,11 +78,24 @@ class APondHero : APondCharacter
 	}
 
 	UFUNCTION(BlueprintPure)
-	UPondPlayerGASAttributes GetAttributes() property
+	UPlayerAttributes GetAttributes() property
 	{
-		return PondPlayerState.Attributes;
+		return PondPlayerState.PlayerAttributes;
 	}
 	// #endregion
+
+	UFUNCTION(BlueprintOverride)
+	void BeginPlay()
+	{
+		GunComponent = UGunComponent::Get(this);
+	}
+
+	UFUNCTION(BlueprintOverride)
+	void Tick(float DeltaSeconds)
+	{
+		Print(f"{MovementState=:n}", 0);
+		Print(f"{PreviousMovementState=:n}", 0);
+	}
 
 	UFUNCTION()
 	void Death()
@@ -104,6 +114,81 @@ class APondHero : APondCharacter
 		PrintWarning("Player died!");
 		DestroyActor();
 	}
+
+	// #region Movement State Handling
+	UFUNCTION(NotBlueprintCallable)
+	private void OnMove_Triggered(FInputActionValue ActionValue, float32 ElapsedTime,
+						  float32 TriggeredTime, const UInputAction SourceAction)
+	{
+		MovementState = (MovementState != EPondMovementState::Still) ? MovementState : EPondMovementState::Run;
+
+		// To Unreal Units (cm)
+		const float ToUU = 100;
+		float MoveSpeed = GunComponent.WeaponDefinition.GetMovementSpeed(MovementState, false) * ToUU;
+		CharacterMovement.MaxWalkSpeed = MoveSpeed;
+		CharacterMovement.MaxWalkSpeedCrouched = MoveSpeed;
+	}
+
+	UFUNCTION(NotBlueprintCallable)
+	private void OnMove_Completed(FInputActionValue ActionValue, float32 ElapsedTime,
+						  float32 TriggeredTime, const UInputAction SourceAction)
+	{
+		MovementState = EPondMovementState::Still;
+	}
+
+	bool CrouchFlag = false;
+
+	UFUNCTION(NotBlueprintCallable)
+	private void OnCrouch_Triggered(FInputActionValue ActionValue, float32 ElapsedTime,
+							float32 TriggeredTime, const UInputAction SourceAction)
+	{
+		if (!CrouchFlag)
+		{
+			PreviousMovementState = MovementState;
+			CrouchFlag = true;
+		}
+
+		MovementState = GetVelocity().IsNearlyZero() ? EPondMovementState::Crouch : EPondMovementState::CrouchWalk;
+	}
+
+	UFUNCTION(NotBlueprintCallable)
+	private void OnCrouch_Cancelled(FInputActionValue ActionValue, float32 ElapsedTime,
+							float32 TriggeredTime, const UInputAction SourceAction)
+	{
+		EndCurrentState();
+	}
+
+	UFUNCTION(NotBlueprintCallable)
+	private void OnCrouch_Completed(FInputActionValue ActionValue, float32 ElapsedTime,
+							float32 TriggeredTime, const UInputAction SourceAction)
+	{
+		EndCurrentState();
+	}
+
+	void EndCurrentState()
+	{
+		EPondMovementState LocalState = MovementState;
+		MovementState = GetVelocity().IsNearlyZero() ? EPondMovementState::Still : (PreviousMovementState == EPondMovementState::Run ? EPondMovementState::Run : EPondMovementState::Still);
+		PreviousMovementState = LocalState;
+
+		CrouchFlag = false;
+		PreviousMovementState = MovementState;
+	}
+
+	UFUNCTION(NotBlueprintCallable)
+	private void OnJump_Started(FInputActionValue ActionValue, float32 ElapsedTime,
+						float32 TriggeredTime, const UInputAction SourceAction)
+	{
+		MovementState = EPondMovementState::Airborne;
+		PreviousMovementState = MovementState;
+	}
+
+	UFUNCTION(BlueprintOverride)
+	void OnLanded(FHitResult Hit)
+	{
+		MovementState = EPondMovementState::Still;
+	}
+	// #endregion
 };
 
 namespace Pond

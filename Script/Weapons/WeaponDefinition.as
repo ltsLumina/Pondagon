@@ -5,6 +5,7 @@ enum EEquipSpeed
 	Instant
 }
 
+UCLASS(Meta = (PrioritizeCategories="Gun | GAS"))
 class UWeaponDefinition : UPrimaryDataAsset
 {
 	UPROPERTY(Category = "Definition", EditDefaultsOnly, BlueprintReadOnly)
@@ -87,13 +88,25 @@ class UWeaponDefinition : UPrimaryDataAsset
 	EFireMode FireMode = EFireMode::Auto;
 
 	/**
-	 * The fire rate of the gun, in rounds per second.
-	 * This is used to calculate the shoot cooldown.
+	 * The attribute set that contains all attributes for this gun specifically.
+	 * For example, the Six Shooter gun uses the USixShooterAttributes attribute set.
+	 * @note Do not input the generic attributes here. That set is automatically added by default.
 	 */
-	UPROPERTY(Category = "Gun | Shooting", EditDefaultsOnly, BlueprintReadOnly, Meta = (UIMin = "0.1", UIMax = "30.0"))
-	float FireRate = 9.75;
+	UPROPERTY(Category = "Gun | GAS", EditDefaultsOnly, BlueprintReadOnly)
+	TSubclassOf<UAngelscriptAttributeSet> AttributeSet;
 
-	UPROPERTY(Category = "Gun | Shooting", EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(Category = "Gun | GAS", EditDefaultsOnly, BlueprintReadOnly)
+	UDataTable AttributeSetDefaultStartingData;
+
+	/**
+	 * The GameplayEffect that gets invoked when the gun is fired.
+	 * @note MUST UPDATE AMMO!
+	 */
+	UPROPERTY(Category = "Gun | GAS", EditDefaultsOnly, BlueprintReadOnly)
+	TSubclassOf<UGameplayAbility> FireGameplayAbility;
+
+	UPROPERTY(Category = "Gun | GAS", EditDefaultsOnly, BlueprintReadOnly)
+	TSubclassOf<UGameplayAbility> ReloadGameplayAbility;
 
 	// - Accuracy
 
@@ -101,12 +114,12 @@ class UWeaponDefinition : UPrimaryDataAsset
 	 * The number of bullets that are guaranteed to be perfectly accurate (no spread).
 	 */
 	UPROPERTY(Category = "Gun | Accuracy | Bullets", EditDefaultsOnly, Meta = (UIMin = "0", ClampMax = "30", UIMax = "30"))
-	int ProtectedBullets = 1;
+	int ProtectedBullets;
 
 	/**
 	 * The number of bullets after which the spread reaches its maximum value.
 	 */
-	UPROPERTY(Category = "Gun | Accuracy | Bullets", VisibleInstanceOnly, BlueprintReadOnly, Meta = (ClampMin = "1", UIMin = "1", ClampMax = "30", UIMax = "30"))
+	UPROPERTY(Category = "Gun | Accuracy | Bullets", EditDefaultsOnly, BlueprintReadOnly, Meta = (ClampMin = "1", UIMin = "1", ClampMax = "30", UIMax = "30"))
 	int MaxSpreadBullet = 6;
 
 	UPROPERTY(Category = "Gun | Accuracy | 1st Shot Spread", EditDefaultsOnly, Meta = (Units = "Degrees"))
@@ -139,7 +152,7 @@ class UWeaponDefinition : UPrimaryDataAsset
 	 * The fire rate when using alternate fire mode, in rounds per second.
 	 */
 	float AltFireRate;
-	default AltFireRate = FireRate * 0.9f;
+	default AltFireRate = Stats.Advanced.FireRate * 0.9f;
 
 	float AltMoveSpeedRatio = 0.76f;
 
@@ -147,9 +160,6 @@ class UWeaponDefinition : UPrimaryDataAsset
 
 	UPROPERTY(Category = "Gun | Reload | Magazine", Instanced)
 	UReloadStrategyBase ReloadStrategy;
-
-	UPROPERTY(Category = "Gun | Reload | Magazine", EditDefaultsOnly)
-	int MagazineSize = 30;
 
 	// - audio
 
@@ -236,7 +246,7 @@ class UWeaponDefinition : UPrimaryDataAsset
 	{
 		return ItemDefinition.DisplayName;
 	}
-	
+
 	UFUNCTION(BlueprintPure)
 	float GetDamage() const
 	{
@@ -288,13 +298,17 @@ struct FWeaponCoreStats
 
 struct FWeaponAdvancedStats
 {
-	UPROPERTY(BlueprintReadOnly, DisplayName = "Rate of Fire")
+	/**
+	 * The fire rate of the gun, in rounds per second.
+	 * This is used to calculate the shoot cooldown.
+	 */
+	UPROPERTY(BlueprintReadOnly, DisplayName = "Rate of Fire (RPM)", Meta = (UIMin = "0.1", UIMax = "900.0", ClampMin = "0.1", ClampMax = "900"))
 	float FireRate = 900;
 
 	UPROPERTY(BlueprintReadOnly, Meta = (Units = "s"))
 	float ReloadSpeed = 3;
 
-	UPROPERTY(BlueprintReadOnly, DisplayName = "Aim Assist")
+	UPROPERTY(BlueprintReadOnly, DisplayName = "Aim Assist", Meta = (Units="degrees"))
 	float BulletMagnetization = 1.61f;
 
 	UPROPERTY(BlueprintReadOnly, Meta = (Units = "%"))
@@ -329,4 +343,46 @@ struct FWeaponHandling
 
 	UPROPERTY(DisplayName = "ADS Speed", Meta = (Units = "s"))
 	float AimDownSightSpeed = 0.4f;
+}
+
+UFUNCTION(BlueprintPure)
+mixin float GetFireRate(FWeaponStats Stats)
+{
+	return Stats.Advanced.FireRate;
+}
+
+UFUNCTION(BlueprintPure)
+mixin float GetReloadSpeed(FWeaponStats Stats)
+{
+	return Stats.Advanced.ReloadSpeed;
+}
+
+UFUNCTION(BlueprintPure)
+mixin float GetBulletMagnetization(FWeaponStats Stats)
+{
+	return Stats.Advanced.BulletMagnetization;
+}
+
+UFUNCTION(BlueprintPure)
+mixin float GetRecoil(FWeaponStats Stats)
+{
+	return Stats.Advanced.Recoil;
+}
+
+UFUNCTION(BlueprintPure)
+mixin float GetPrecision(FWeaponStats Stats)
+{
+	return Stats.Advanced.Precision;
+}
+
+UFUNCTION(BlueprintPure)
+mixin float GetDamage(FWeaponStats Stats)
+{
+	return Stats.Advanced.Damage;
+}
+
+UFUNCTION(BlueprintPure)
+mixin float GetWeight(FWeaponStats Stats)
+{
+	return Stats.Advanced.Weight;
 }

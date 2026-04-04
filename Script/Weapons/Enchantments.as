@@ -8,10 +8,9 @@ enum ERarity
 	Contraband // Mythic
 }
 
-
-enum EEnchantmentCondition
+enum EExecuteCondition
 {
-	OnFire,
+	OnShot,
 	OnHit,
 	OnKill,
 	OnPrecisionHit,
@@ -19,10 +18,11 @@ enum EEnchantmentCondition
 	OnLastBullet,
 	OnReload,
 	OnShieldDepletion,
+	NONE,
 }
 
 UCLASS(Abstract, HideDropdown, NotBlueprintable, Meta = (PrioritizeCategories = "Display"))
-class UEnchantment : UDataAsset
+class UEnchantment : UGameplayAbility
 {
 	UPROPERTY(Category = "Display")
 	FText DisplayName;
@@ -35,6 +35,21 @@ class UEnchantment : UDataAsset
 
 	UPROPERTY(Category = "Display")
 	ERarity Rarity;
+
+	UPROPERTY(BlueprintReadOnly, DisplayName = "ASC (Ability System Component)", BlueprintGetter = "GetAngelscriptAbilitySystemComponent")
+	protected UAngelscriptAbilitySystemComponent AbilitySystem;
+
+	UFUNCTION(BlueprintPure)
+	protected UAngelscriptAbilitySystemComponent GetAngelscriptAbilitySystemComponent()
+	{
+		ThrowIf(!IsValid(AbilitySystemComponentFromActorInfo), "AbilitySystemComponent in ActorInfo is nullptr!");
+		return Cast<UAngelscriptAbilitySystemComponent>(AbilitySystemComponentFromActorInfo);
+	}
+
+	protected UAngelscriptAbilitySystemComponent GetASC() property
+	{
+		return GetAngelscriptAbilitySystemComponent();
+	}
 }
 
 ////// BASE CLASSES ///////
@@ -43,55 +58,5 @@ UCLASS(HideDropdown)
 class UWeaponEnchantment : UEnchantment
 {
 	UPROPERTY(Category = "Enchantment")
-	EEnchantmentCondition ExecuteCondition;
-
-	UFUNCTION(BlueprintEvent)
-	protected void Apply(FBulletHit InHit, FMagazineState InState)
-	{}
-
-	UFUNCTION(BlueprintEvent, DisplayName = "Shot")
-	protected void OnShot(FBulletHit InHit)
-	{}
-
-	UFUNCTION(BlueprintEvent, DisplayName = "Hit")
-	protected void OnHit(FBulletHit InHit)
-	{}
-
-	UFUNCTION(BlueprintEvent, DisplayName = "Kill")
-	protected void OnKill(FBulletHit InHit)
-	{}
-
-	UFUNCTION(BlueprintEvent, DisplayName = "Precision Hit")
-	protected void OnPrecisionHit(FBulletHit InHit)
-	{}
-
-	UFUNCTION(BlueprintEvent, DisplayName = "Precision Kill")
-	protected void OnPrecisionKill(FBulletHit InHit)
-	{}
-
-	UFUNCTION(BlueprintEvent, DisplayName = "Last Bullet")
-	protected void OnLastBullet(FBulletHit InHit)
-	{}
-
-	UFUNCTION(BlueprintEvent, DisplayName = "Reload")
-	protected void OnReload(FMagazineState InState)
-	{}
-
-	UFUNCTION(BlueprintEvent)
-	protected void OnShieldDepletion()
-	{}
-
-	// Helpers
-
-	UFUNCTION(NotBlueprintCallable)
-	private void UpdateHit(FBulletHit InHit)
-	{
-		Hit = InHit;
-	}
-
-	UFUNCTION(NotBlueprintCallable)
-	private void UpdateState(FMagazineState InState)
-	{
-		State = InState;
-	}
+	EExecuteCondition ExecuteCondition;
 }

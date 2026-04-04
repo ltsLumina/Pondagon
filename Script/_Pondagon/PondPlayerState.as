@@ -2,17 +2,21 @@ class APondPlayerState : APlayerState
 {
 	UPROPERTY(DefaultComponent)
 	UAngelscriptAbilitySystemComponent AbilitySystem;
+	//default AbilitySystem = UAngelscriptAbilitySystemComponent::Create(this, n"AbilitySystem");
 
 	UPROPERTY(NotVisible, BlueprintReadOnly)
 	UInventoryComponent InventoryComponent;
 	default InventoryComponent = UInventoryComponent::Get(this);
 	//~Components
 
-	UPROPERTY(Category = "Hero | GAS", EditDefaultsOnly)
-	TArray<TSubclassOf<UPondAbility>> InitialAbilities;
+	UPROPERTY(Category = "Hero | GAS", EditConst)
+	UPlayerAttributes PlayerAttributes;
 
 	UPROPERTY(Category = "Hero | GAS", EditConst)
-	UPondPlayerGASAttributes Attributes;
+	UGenericGunAttributes GenericGunAttributes;
+
+	UPROPERTY(Category = "Hero | GAS", EditConst)
+	UAngelscriptAttributeSet SpecificGunAttributes;
 
 	UPROPERTY(Category = "Team", BlueprintReadOnly)
     int RespawnTokens = 1;
@@ -21,43 +25,44 @@ class APondPlayerState : APlayerState
 	UFUNCTION(BlueprintPure)
 	float GetCurrentHealth() property
 	{
-		return Attributes.Health.CurrentValue;
+		return PlayerAttributes.Health.CurrentValue;
 	}
 
 	UFUNCTION(BlueprintPure)
 	float GetBaseHealth() property
 	{
-		return Attributes.Health.BaseValue;
+		return PlayerAttributes.Health.BaseValue;
 	}
 
 	UFUNCTION(BlueprintPure)
 	float GetCurrentShield() property
 	{
-		return Attributes.Shield.CurrentValue;
+		return PlayerAttributes.Shield.CurrentValue;
 	}
 
 	UFUNCTION(BlueprintPure)
 	float GetBaseShield() property
 	{
-		return Attributes.Shield.BaseValue;
+		return PlayerAttributes.Shield.BaseValue;
 	}
 	// #endregion
 
 	UFUNCTION(BlueprintOverride)
 	void BeginPlay()
 	{
-		for (auto Ability : InitialAbilities)
-			AbilitySystem.GiveAbility(FGameplayAbilitySpec(Ability, 1, -1));
+		auto GunComponent = UGunComponent::Get(Pawn);
+		TSubclassOf<UAngelscriptAttributeSet> CurrentGunAttributeSet = GunComponent.CurrentGun.WeaponDefinition.AttributeSet;
 
-		Attributes = Cast<UPondPlayerGASAttributes>(AbilitySystem.RegisterAttributeSet(UPondPlayerGASAttributes));
+		PlayerAttributes = Cast<UPlayerAttributes>(AbilitySystem.RegisterAttributeSet(UPlayerAttributes));
+		GenericGunAttributes = Cast<UGenericGunAttributes>(AbilitySystem.RegisterAttributeSet(UGenericGunAttributes));
+		SpecificGunAttributes = AbilitySystem.RegisterAttributeSet(CurrentGunAttributeSet);
 
 		AbilitySystem.InitAbilityActorInfo(this, Pawn);
-
-		AbilitySystem.InitStats(UPondPlayerGASAttributes, Cast<APondHero>(Pawn).Definition.AttributeSetDefaultStartingData)
+		AbilitySystem.InitStats(UPlayerAttributes, Cast<APondHero>(Pawn).Definition.AttributeSetDefaultStartingData);
 
 #if EDITOR
-		float SpawnHealth = HealthAttribute;
-		float SpawnShield = ShieldAttribute;
+		float SpawnHealth = CurrentHealth;
+		float SpawnShield = CurrentShield;
 		Print(f"{ActorNameOrLabel} has spawned with {SpawnHealth} health and {SpawnShield} Shield.", 1.5f, FLinearColor::Green);
 #endif
 	}

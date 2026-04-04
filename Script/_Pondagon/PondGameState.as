@@ -17,13 +17,13 @@ class APondGameState : AGameState
         TArray<UEnchantment> PossibleEnchantments;
         // TODO: Iterate through DataTable to get all upgrades from it, and populate PossibleEnchantments.
 
-        CurrentRun = FSeededRunData(Stream, Stream.Seed, PossibleEnchantments);
+        CurrentRun = FSeededRunData(Stream, Stream.CurrentSeed, PossibleEnchantments);
     }
 
     UFUNCTION(BlueprintOverride)
     void BeginPlay()
     {
-        InitRun();
+        InitRun(FRandomStream(-1));
     }
 };
 

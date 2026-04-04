@@ -20,16 +20,13 @@ struct FBulletHit
 	AController Instigator;
 
 	UPROPERTY(BlueprintReadOnly)
-	APondCharacter HitCharacter;
-
-	UPROPERTY(BlueprintReadOnly)
-	bool WasHeroHit;
+	AEnemyBase HitEnemy;
 
 	UPROPERTY(BlueprintReadOnly)
 	float Damage;
 
 	UPROPERTY(BlueprintReadOnly)
-	bool IsShieldBreak; // only when player affected
+	bool IsShieldBreak;
 
 	UPROPERTY(BlueprintReadOnly)
 	bool IsPrecisionHit;
@@ -38,13 +35,15 @@ struct FBulletHit
 	bool IsKill;
 
 	UPROPERTY(BlueprintReadOnly)
+	TArray<EExecuteCondition> ExecuteResults;
+
+	UPROPERTY(BlueprintReadOnly)
 	FHitResult Hit;
 
-	FBulletHit(AController InInstigator, APondCharacter InHitCharacter, bool InWasHeroHit, float InDamage, bool InIsShieldBreak, bool InIsPrecisionKill, bool InIsKill, FHitResult InHitResult)
+	FBulletHit(AController InInstigator, AEnemyBase InHitEnemy, float InDamage, bool InIsShieldBreak, bool InIsPrecisionKill, bool InIsKill, FHitResult InHitResult)
 	{
 		Instigator = InInstigator;
-		HitCharacter = InHitCharacter;
-		WasHeroHit = InWasHeroHit;
+		HitEnemy = InHitEnemy;
 		Damage = InDamage;
 		IsShieldBreak = InIsShieldBreak;
 		IsPrecisionHit = InIsPrecisionKill;
@@ -53,13 +52,13 @@ struct FBulletHit
 	}
 };
 
-//#region Mixin
+// #region Mixin
 UFUNCTION(BlueprintPure, Meta = (ReturnDisplayName = "Hit Result"))
 mixin FHitResult GetHitResult(FBulletHit BulletHit)
 {
 	return BulletHit.Hit;
 }
-//#endregion
+// #endregion
 
 struct FMagazineState
 {
@@ -82,11 +81,19 @@ struct FMagazineState
 
 class UGunComponent : UActorComponent
 {
-	UPROPERTY(Category = "Gun", EditDefaultsOnly)
+	UPROPERTY(Category = "Gun", EditDefaultsOnly, BlueprintReadOnly)
 	UWeaponDefinition DefaultGun;
 
-	UPROPERTY(Category = "Gun", VisibleInstanceOnly)
+	UPROPERTY(Category = "Gun", VisibleInstanceOnly, BlueprintReadOnly)
 	UWeaponInstance CurrentGun;
+
+	UFUNCTION(Category = "Gun", Meta = (DeterminesOutputType = "Instance"))
+	UWeaponInstance RegisterCurrentGun(UWeaponInstance Instance)
+	{
+		CurrentGun = Instance;
+
+		return CurrentGun;
+	}
 
 	UFUNCTION(BlueprintPure)
 	UWeaponDefinition GetWeaponDefinition() property
@@ -100,19 +107,22 @@ class UGunComponent : UActorComponent
 	UPROPERTY(Category = "Gun | Scope", VisibleInstanceOnly)
 	bool IsScoped;
 
-	UPROPERTY(NotEditable, BlueprintReadOnly)
-	UPondPlayerGASAttributes PlayerAttributes;
+	UPROPERTY(Category = "Hero | GAS", EditConst)
+	UGenericGunAttributes GenericGunAttributes;
+
+	UPROPERTY(Category = "Hero | GAS", EditConst)
+	UAngelscriptAttributeSet SpecificGunAttributes;
 
 	UFUNCTION(Category = "Gun | Ammo", BlueprintPure)
-	int GetAmmoAttribute() property
+	int GetCurrentAmmo() property
 	{
-		return int(PlayerAttributes.Ammo.CurrentValue);
+		return int(GenericGunAttributes.Ammo.CurrentValue);
 	}
 
 	UFUNCTION(Category = "Gun | Ammo", BlueprintPure)
-	int GetMaxAmmoAttribute() property
+	int GetCurrentMaxAmmo() property
 	{
-		return int(PlayerAttributes.MaxAmmo.CurrentValue);
+		return int(GenericGunAttributes.MaxAmmo.CurrentValue);
 	}
 
 	/**
@@ -231,19 +241,27 @@ class UGunComponent : UActorComponent
 	UPROPERTY(Category = "Events")
 	FOnMagazineEmpty OnMagazineEmpty;
 
+	FGameplayAbilitySpecHandle FireSpec;
+	FGameplayAbilitySpecHandle ReloadSpec;
+
 	UFUNCTION(BlueprintOverride)
 	void BeginPlay()
 	{
 		OwningHero = Cast<APondHero>(GetOwner());
 
-		PlayerAttributes = Pond::GetPondPlayerStateBase().Attributes;
-		PlayerAttributes.Ammo.Initialize(WeaponDefinition.MagazineSize);
-		PlayerAttributes.MaxAmmo.Initialize(WeaponDefinition.MagazineSize);
+		auto PS = Cast<APondPlayerState>(OwningHero.PlayerState);
+		GenericGunAttributes = PS.GenericGunAttributes;
+		SpecificGunAttributes = PS.SpecificGunAttributes;
 
-		ShootCooldown = 1.0 / WeaponDefinition.FireRate;
-		RPM = WeaponDefinition.FireRate * 60;
+		GenericGunAttributes.Ammo.Initialize(WeaponDefinition.Stats.Core.Magazine);
+		GenericGunAttributes.MaxAmmo.Initialize(WeaponDefinition.Stats.Core.Magazine);
 
-		// GetAngelGameState().OnHeroDeath.AddUFunction(this, n"HeroKilled");
+		ShootCooldown = 1.0 / WeaponDefinition.Stats.GetFireRate();
+		RPM = WeaponDefinition.Stats.GetFireRate() * 60;
+
+		auto ASC = AbilitySystem::GetAbilitySystemComponent(OwningHero.PlayerState);
+		FireSpec = ASC.GiveAbility(WeaponDefinition.FireGameplayAbility, 0, -1);
+		ReloadSpec = ASC.GiveAbility(WeaponDefinition.ReloadGameplayAbility, 0 - 1);
 
 		Ready();
 	}
@@ -256,20 +274,7 @@ class UGunComponent : UActorComponent
 		// Assumes player has not fired for a while, reset recoil index
 		if (TimeSinceLastShot > ShootCooldown * 2)
 			RecoilIndex = 0;
-
-		if (RecoilIndex == 0)
-			StopHorizontalRecoil();
-
-		BP_Tick(DeltaSeconds);
 	}
-
-	UFUNCTION(BlueprintEvent)
-	void StopHorizontalRecoil()
-	{}
-
-	UFUNCTION(BlueprintEvent, DisplayName = "Tick")
-	void BP_Tick(float DeltaSeconds)
-	{}
 
 	UFUNCTION(BlueprintPure, Category = "Gun | Accuracy", Meta = (AdvancedDisplay = "ConeWidth,ConeHeight,ErrorAngle,IsAccurate"))
 	FVector ApplySpread(FVector AimDirection, float SpreadDeg, FBulletSpreadData&out OutSpreadData = FBulletSpreadData())
@@ -288,6 +293,12 @@ class UGunComponent : UActorComponent
 		// Build an orthonormal basis around AimDirection
 		FVector Right = FVector::UpVector.CrossProduct(AimDirection).GetSafeNormal();
 		FVector Up = AimDirection.CrossProduct(Right).GetSafeNormal();
+
+		if (IsBulletProtected())
+		{
+			FVector FinalDirSansSpread = (AimDirection).GetSafeNormal();
+			return FinalDirSansSpread;
+		}
 
 		// Apply spread offset
 		FVector FinalDir = (AimDirection + Right * OffsetX + Up * OffsetY).GetSafeNormal();
@@ -325,8 +336,9 @@ class UGunComponent : UActorComponent
 
 	TArray<FHitResult> Hits;
 	bool BlockingHit;
+	TArray<EExecuteCondition> SuccessfulConditions;
 
-	TArray<FHitResult> Trace(float MaxDistance = 10000.0f)
+	TArray<FHitResult> Trace(float MaxDistance = 10000.0f, FBulletHit&out OutBulletHit = FBulletHit())
 	{
 		FVector AimDirection = (GetTargetPoint(MaxDistance) - TraceStart).GetSafeNormal();
 
@@ -344,7 +356,7 @@ class UGunComponent : UActorComponent
 											 ActorsToIgnore,
 											 DebugTrace,
 											 Hits,
-											 true,
+											 true, // doesn't ignore the owning actor!!
 											 FLinearColor::Yellow,
 											 FLinearColor::Green,
 											 DebugTraceDuration);
@@ -355,33 +367,51 @@ class UGunComponent : UActorComponent
 			ShootSFX();
 
 			BulletHit = FBulletHit();
+			BulletHit.ExecuteResults.Add(EExecuteCondition::OnShot); // always onshot, even if we didnt hit anything
 			return TArray<FHitResult>();
 		}
 
 		FHitResult LastHit = Hits.Last();
 
 		auto Instigator = OwningHero.Controller;
-		auto HitCharacter = Cast<APondCharacter>(LastHit.Actor);
-		auto WasHeroHit = Cast<APondHero>(LastHit.Actor) != nullptr;
+		auto HitEnemy = Cast<AEnemyBase>(LastHit.Actor);
 		float Damage = WeaponDefinition.GetDamage();
+
+		SuccessfulConditions.Empty();
+		SuccessfulConditions.Add(EExecuteCondition::OnShot);
+
+		if (HitEnemy != nullptr && !HitEnemy.Attributes.OnEnemyHit.IsBound())
+			HitEnemy.Attributes.OnEnemyHit.AddUFunction(this, n"OnEnemyHit");
 
 		BulletHit = FBulletHit();
 		BulletHit.Instigator = Instigator;
-		BulletHit.HitCharacter = HitCharacter;
-		BulletHit.WasHeroHit = WasHeroHit;
-		if (HitCharacter != nullptr)
-			BulletHit.IsShieldBreak = Pond::GetPondPlayerStateBase().ShieldAttribute - Damage <= 0 && HitCharacter.GameplayTags.HasTag(GameplayTags::Character_State_HasArmor);
-		BulletHit.IsPrecisionHit = LastHit.BoneName == n"Weakpoint";
-		if (HitCharacter != nullptr)
-			BulletHit.IsKill = Pond::GetPondPlayerStateBase().HealthAttribute - Damage <= 0 && !HitCharacter.GameplayTags.HasTag(GameplayTags::Character_State_Dead);
 		BulletHit.Damage = Damage;
 		BulletHit.Hit = LastHit;
+		BulletHit.IsPrecisionHit = LastHit.BoneName == n"Head";
 
-		if (BulletHit.WasHeroHit)
+		BulletHit.HitEnemy = HitEnemy;
+		if (IsValid(HitEnemy))
 		{
-			// Instead of subscribing to each enemy's death, we'll check if they died
-			// and broadcast to the global death event in the damage application
+			BulletHit.IsShieldBreak = (HitEnemy.CurrentShield - Damage) <= 0;
+			BulletHit.IsKill = (HitEnemy.CurrentHealth - Damage <= 0);
 		}
+
+		/*
+				if (IsValid(BulletHit.HitEnemy))
+					SuccessfulConditions.Add(EExecuteCondition::OnHit);
+				if (BulletHit.IsPrecisionHit)
+					SuccessfulConditions.Add(EExecuteCondition::OnPrecisionHit);
+				if (BulletHit.IsKill)
+					SuccessfulConditions.Add(EExecuteCondition::OnKill);
+				if (BulletHit.IsKill && BulletHit.IsPrecisionHit)
+					SuccessfulConditions.Add(EExecuteCondition::OnPrecisionKill);
+				for (auto& Result : SuccessfulConditions)
+				{
+					Print(f"{Result:n}", 0.5f);
+				}
+
+				*/
+		BulletHit.ExecuteResults = SuccessfulConditions;
 
 		ShootSFX();
 		HitSFX();
@@ -389,12 +419,12 @@ class UGunComponent : UActorComponent
 		bool Penetrated = false;
 		CreateImpactDecal(Penetrated);
 
-		if (BulletHit.WasHeroHit)
+		if (BulletHit.HitEnemy != nullptr)
 		{
 			float DamageAmount = BulletHit.Damage;
 
 			Gameplay::ApplyPointDamage(
-				BulletHit.HitCharacter,
+				BulletHit.HitEnemy,
 				DamageAmount,
 				BulletDirection,
 				LastHit,
@@ -403,12 +433,55 @@ class UGunComponent : UActorComponent
 				TSubclassOf<UDamageType>(UDamageType));
 		}
 
+		OutBulletHit = BulletHit;
 		return Hits;
+	}
+
+	UFUNCTION(NotBlueprintCallable)
+	private void OnEnemyHit(float DamageDealt, bool WasPrecision, bool Died)
+	{
+		if (Died && BulletHit.HitEnemy != nullptr)
+			BulletHit.HitEnemy.Attributes.OnEnemyHit.Clear();
+
+		if (DamageDealt > 0)
+			SuccessfulConditions.Add(EExecuteCondition::OnHit);
+		if (Died)
+			SuccessfulConditions.Add(EExecuteCondition::OnKill);
+		if (WasPrecision)
+			SuccessfulConditions.Add(EExecuteCondition::OnPrecisionHit);
+		if (WasPrecision && Died)
+			SuccessfulConditions.Add(EExecuteCondition::OnPrecisionKill);
+
+		for (auto& Result : SuccessfulConditions)
+		{
+			Print(f"{Result:n}", 2.5f);
+		}
+
+		auto ASC = AbilitySystem::GetAngelscriptAbilitySystemComponent(OwningHero.PlayerState);
+		for (auto EnchantClass : CurrentGun.Enchantments)
+		{
+			auto AsWepEnchant = Cast<UWeaponEnchantment>(EnchantClass.DefaultObject);
+
+			for (auto& Result : SuccessfulConditions)
+			{
+				if (Result == AsWepEnchant.ExecuteCondition)
+				{
+					auto Spec = FGameplayAbilitySpec(EnchantClass, 1, -1, nullptr);
+
+					FGameplayEventData Payload;
+					Payload.ContextHandle = ASC.MakeEffectContext();
+					Payload.ContextHandle.AddHitResult(BulletHit.Hit, false);
+
+					ASC.GiveAbilityAndActivateOnceWithEventData(Spec, Payload);
+					Print(f"activating {AsWepEnchant.DisplayName}", 1.5f, FLinearColor(1.00, 0.07, 0.07));
+				}
+			}
+		}
 	}
 
 	void ShootSFX()
 	{
-		if (AmmoAttribute > 0)
+		if (CurrentAmmo > 0)
 			Gameplay::PlaySoundAtLocation(WeaponDefinition.ShootSound, GetOwner().ActorLocation, FRotator::ZeroRotator, 1.0f, 1.0f, 0.0f, WeaponDefinition.DefaultAttenuation);
 		// else
 		// Gameplay::PlaySoundAtLocation(DryFireSound, GetActorLocation(), FRotator::ZeroRotator, 0.6f, 0.8f, 0.0f, DefaultAttenuation);
@@ -416,7 +489,7 @@ class UGunComponent : UActorComponent
 
 	void HitSFX()
 	{
-		if (BulletHit.WasHeroHit && BulletHit.IsPrecisionHit)
+		if (BulletHit.HitEnemy != nullptr && BulletHit.IsPrecisionHit)
 		{ /*
 			 if (Cast<AEnemyBase>(BulletHit.HitCharacter).Attributes.ShieldAttribute.CurrentValue > 0)
 			 {
@@ -427,11 +500,11 @@ class UGunComponent : UActorComponent
 				Gameplay::PlaySound2D(WeaponDefinition.HeadshotSound);
 			}
 		}
-		else if (BulletHit.WasHeroHit && !BulletHit.IsPrecisionHit)
+		else if (BulletHit.HitEnemy != nullptr && !BulletHit.IsPrecisionHit)
 		{
 			Gameplay::PlaySound2D(WeaponDefinition.BodyshotSound);
 		}
-		else if (!BulletHit.WasHeroHit)
+		else if (BulletHit.HitEnemy == nullptr)
 		{
 			float PitchMultiplier = Math::Clamp(1.0f - (BulletHit.Hit.Distance / 10000.0f), 0.75f, 1.0f); // Closer impacts sound higher pitched
 			Gameplay::PlaySoundAtLocation(WeaponDefinition.GroundHitSound, BulletHit.Hit.Location, FRotator::ZeroRotator, 1.0f, PitchMultiplier, 0.0f, WeaponDefinition.DefaultAttenuation);
@@ -473,15 +546,19 @@ class UGunComponent : UActorComponent
 	{
 		this.ElapsedTime = InElapsedTime;
 		this.TriggeredTime = InTriggeredTime;
-		Shoot();
+
+		auto ASC = AbilitySystem::GetAngelscriptAbilitySystemComponent(OwningHero.PlayerState);
+		ASC.TryActivateAbility(FireSpec);
 	}
 
 	/**
-	 * CALLED ON THE SERVER
+	 * Generic shoot function.
 	 */
-	UFUNCTION(Category = "Gun", Server)
-	bool Shoot()
+	UFUNCTION()
+	bool Shoot(FBulletHit&out Hit)
 	{
+		auto ASC = AbilitySystem::GetAngelscriptAbilitySystemComponent(OwningHero.PlayerState);
+
 		if (!GetOwner().HasAuthority())
 			return false;
 
@@ -502,7 +579,7 @@ class UGunComponent : UActorComponent
 		if (GetIsOnShootCooldown())
 			return false;
 
-		if (AmmoAttribute <= 0)
+		if (CurrentAmmo <= 0)
 		{
 			PrintWarning(f"{WeaponDefinition.GetDisplayName()} has no ammo! Cannot fire.", 0, FLinearColor(1.0, 0.5, 0.0));
 			return false;
@@ -510,55 +587,12 @@ class UGunComponent : UActorComponent
 
 		if (GetIsReady())
 		{
-			Hits = Trace(10000.0f);
-
-			Print(f"{WeaponDefinition.GetDisplayName()} fired!", 0.5f, FLinearColor(0.15, 0.32, 0.52));
-			OnFire.Broadcast(BulletHit);
-
-			// Weapon Chip Subscribers
-
-			if (BulletHit.HitCharacter != nullptr)
-			{
-				OnHit.Broadcast(BulletHit);
-			}
-			else if (BulletHit.IsKill)
-			{
-				OnKill.Broadcast(BulletHit);
-			}
-			else if (BulletHit.IsPrecisionHit)
-			{
-				OnPrecisionHit.Broadcast(BulletHit);
-			}
-			else if (BulletHit.IsPrecisionHit && BulletHit.IsKill)
-			{
-				OnPrecisionKill.Broadcast(BulletHit);
-			}
-			// endregion
-
-			auto AbilitySystem = Pond::GetPondPlayerStateBase().AbilitySystem;
-			FGameplayEffectSpecHandle CurrentAmmoHandle = AbilitySystem.MakeOutgoingSpec(UGE_Additive_CurrentAmmo, 1, FGameplayEffectContextHandle());
-			if (CurrentAmmoHandle.IsValid() && AmmoAttribute > 0)
-			{
-				CurrentAmmoHandle.Spec.SetByCallerMagnitude(GameplayTags::Data_Guns_Ammo, -1);
-				AbilitySystem.ApplyGameplayEffectSpecToSelf(CurrentAmmoHandle);
-
-				MagazineState = FMagazineState(AmmoAttribute, MaxAmmoAttribute, AmmoAttribute <= 0);
-
-				Print(f"Decremented Current Ammo! ({AmmoAttribute}/{MaxAmmoAttribute})", 1, FLinearColor::DPink);
-
-				// region Magazine Chip Subscribers
-				if (AmmoAttribute == 1)
-				{
-					OnLastBullet.Broadcast(MagazineState);
-				}
-				// endregion
-			}
+			Hits = Trace(10000.0f, Hit);
 
 			RecoilIndex++;
 
-			if (AmmoAttribute <= 0)
+			if (CurrentAmmo <= 0)
 			{
-				WeaponDefinition.ReloadStrategy.GunState = EGunState::NotReady;
 				PrintWarning(f"{WeaponDefinition.GetDisplayName()} is empty!", 2, FLinearColor(1.0, 0.5, 0.0));
 			}
 
@@ -596,32 +630,23 @@ class UGunComponent : UActorComponent
 		IsAltMode = false;
 	}
 
-	UFUNCTION()
+	UFUNCTION(NotBlueprintCallable)
 	private void Interim_Reload(FInputActionValue ActionValue, float32 InElapsedTime,
 						float32 InTriggeredTime, const UInputAction SourceAction)
 	{
-		Reload();
-	}
-
-	UFUNCTION(BlueprintEvent)
-	void Reload()
-	{
-		WeaponDefinition.ReloadStrategy.Reload();
-
-		Gameplay::PlaySound2D(WeaponDefinition.ReloadSound);
-
-		OnReload.Broadcast(FMagazineState(MaxAmmoAttribute, MaxAmmoAttribute, AmmoAttribute <= 0));
+		auto ASC = AbilitySystem::GetAbilitySystemComponent(OwningHero.PlayerState);
+		ASC.TryActivateAbility(ReloadSpec);
 	}
 
 	void Ready()
 	{
-		if (!GetIsReady() && AmmoAttribute > 0)
+		if (!GetIsReady() && CurrentAmmo > 0)
 		{
 			WeaponDefinition.ReloadStrategy.GunState = EGunState::Ready;
 			BP_Ready();
 			// Print(f"{GunName} readied! Magazine: {CurrentAmmo}/{MaxAmmo}", 2, FLinearColor(0.58, 0.95, 0.49));
 		}
-		else if (AmmoAttribute <= 0)
+		else if (CurrentAmmo <= 0)
 		{
 			PrintWarning(f"No ammo to ready! Gun is empty.", 2, FLinearColor(1.0, 0.5, 0.0));
 		}
