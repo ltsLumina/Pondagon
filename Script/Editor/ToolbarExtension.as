@@ -19,10 +19,10 @@ class UExampleToolbarExtension : UScriptEditorMenuExtension
 	/**
 	 * 
 	 */
-    UFUNCTION(CallInEditor, DisplayName = "TBD", Meta = (EditorIcon = "Icons.Minus", EditorButtonStyle = "CalloutToolbar"))
-	void B_TBD()
+    UFUNCTION(CallInEditor, DisplayName = "GAS Docs", Meta = (EditorIcon = "Icons.Minus", EditorButtonStyle = "CalloutToolbar"))
+	void B_OpenGASDocumentation()
 	{
-        
+        System::LaunchURL("https://github.com/tranek/GASDocumentation");
 	}
 };
 #endif
