@@ -1,5 +1,5 @@
 UCLASS(Abstract)
-class APondCharacter : ACharacter
+class AScriptPondCharacter : ACharacter
 {
 	
 }
@@ -7,8 +7,8 @@ class APondCharacter : ACharacter
 namespace Pond
 {
 	UFUNCTION(BlueprintPure)
-	APondCharacter GetPondCharacterBase(AActor Actor)
+	AScriptPondCharacter GetPondCharacterBase(AActor Actor)
 	{
-		return Cast<APondCharacter>(Actor);
+		return Cast<AScriptPondCharacter>(Actor);
 	}
 }

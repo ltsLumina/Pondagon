@@ -2,32 +2,8 @@
  * Set of static utility functions to easily apply damage, healing, and shielding through angelscript.
  */
 namespace HealthUtils
-{
-	UFUNCTION(Category = "Health Utils")
-	float GetCurrentHealth(UAngelscriptAbilitySystemComponent AbilitySystem)
-	{
-		auto CurrentHealth = AbilitySystem.GetAttributeCurrentValue(UPlayerAttributes, UPlayerAttributes::HealthName, -1.0f);
-		if (CurrentHealth <= -1.0f)
-		{
-			PrintWarning("Invalid Attribute! - Could not find a health attribute on this AbilitySystem!");
-			return -1;
-		}
-		return CurrentHealth;
-	}
-
-	UFUNCTION(Category = "Health Utils")
-	float GetBaseHealth(UAngelscriptAbilitySystemComponent AbilitySystem)
-	{
-		auto BaseHealth = AbilitySystem.GetAttributeBaseValue(UPlayerAttributes, UPlayerAttributes::HealthName, -1.0f);
-		if (BaseHealth <= -1.0f)
-		{
-			PrintWarning("Invalid Attribute! - Could not find a health attribute on this AbilitySystem!");
-			return -1;
-		}
-		return BaseHealth;
-	}
-
-	void ApplyDamage(UAngelscriptAbilitySystemComponent AbilitySystem, float InCurrentHealth, float InCurrentShield, float Damage)
+{/*
+	void ApplyDamage(UAngelscriptAbilitySystemComponent AbilitySystem, float Damage, float InCurrentHealth, float InCurrentShield)
 	{
 		float DamageToHealth;
 		float DamageToShield;
@@ -83,46 +59,47 @@ void ApplyShield(UAngelscriptAbilitySystemComponent AbilitySystem, float ShieldA
 #endif
 		}
 	}
+*/
 
 	/**
 	 * Calculates how incoming damage is split between health and armor.
 	 * @param Damage The total incoming damage.
 	 * @param DamageToHealth Output parameter for damage applied to health.
 	 * @param DamageToArmor Output parameter for damage applied to armor.
+	 * @return bShouldKill - Returns true if the DamageToHealth >= InCurrentHealth.
+	 * @note Although the function returns if the result *should kill*, it doesn't necessarilly mean it **will**. Use return value with caution.
 	 */
 	UFUNCTION(Category = "Agent | Damage")
-	void CalculateDamageTaken(float Damage, float InCurrentHealth, float InCurrentShield, float&out DamageToHealth, float&out DamageToArmor)
+	bool CalculateDamageTaken(float Damage, float InCurrentHealth, float InCurrentShield, float&out DamageToHealth, float&out DamageToShield, float AbsorptionRatio = 0.66f)
 	{
-		const float ABSORPTION_RATIO = 0.66f;
-
 		float CurrHealth = InCurrentHealth;
-		float CurrArmor = InCurrentShield;
+		float CurrShield = InCurrentShield;
 
 		// initialize returned damage values
 		DamageToHealth = 0;
-		DamageToArmor = 0;
+		DamageToShield = 0;
 
-		const float HealthRatio = 1 - ABSORPTION_RATIO;
+		const float HealthRatio = 1 - AbsorptionRatio;
 
-		if (CurrArmor > 0)
+		if (CurrShield > 0)
 		{
 			// How much armor (in incoming-damage units) is needed to absorb full damage
-			float ArmorNeeded = Damage * ABSORPTION_RATIO;
+			float ArmorNeeded = Damage * AbsorptionRatio;
 
-			if (CurrArmor >= ArmorNeeded) // armor can fully absorb, no break
+			if (CurrShield >= ArmorNeeded) // armor can fully absorb, no break
 			{
 				// armor absorbed ArmorNeeded (portion of incoming damage)
-				DamageToArmor = ArmorNeeded;
+				DamageToShield = ArmorNeeded;
 				// health takes the remaining portion
 				DamageToHealth = Damage * HealthRatio;
 
-				CurrArmor -= ArmorNeeded;
+				CurrShield -= ArmorNeeded;
 				CurrHealth -= DamageToHealth;
 			}
 			else // armor breaks mid-hit
 			{
 				// amount of incoming damage that was absorbed by armor
-				float AbsorbedDamage = CurrArmor / ABSORPTION_RATIO;
+				float AbsorbedDamage = CurrShield / AbsorptionRatio;
 				// remaining incoming damage that goes straight to health
 				float RemainingDamage = Damage - AbsorbedDamage;
 
@@ -130,22 +107,24 @@ void ApplyShield(UAngelscriptAbilitySystemComponent AbilitySystem, float ShieldA
 				float HealthFromAbsorbed = AbsorbedDamage * HealthRatio;
 				DamageToHealth = HealthFromAbsorbed + RemainingDamage;
 				// damage portion attributed to armor (incoming-damage units)
-				DamageToArmor = AbsorbedDamage;
+				DamageToShield = AbsorbedDamage;
 
 				// clamp to max value
-				DamageToArmor = Math::Min(DamageToArmor, 999);
+				DamageToShield = Math::Min(DamageToShield, 999);
 
 				CurrHealth -= DamageToHealth;
-				CurrArmor = 0;
+				CurrShield = 0;
 			}
 		}
 		else
 		{
 			// no armor: all damage goes to health
-			DamageToArmor = 0;
+			DamageToShield = 0;
 			DamageToHealth = Damage;
 
 			CurrHealth -= Damage;
 		}
+
+		return DamageToHealth >= InCurrentHealth;
 	}
 }

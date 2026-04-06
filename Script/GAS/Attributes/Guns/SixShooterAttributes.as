@@ -27,7 +27,7 @@ class USixShooterAttributes : UAngelscriptAttributeSet
 	UFUNCTION(BlueprintOverride)
 	void PostAttributeChange(FGameplayAttribute Attribute, float OldValue, float NewValue)
 	{
-		Print(f"Precision Hits: {NewValue}", 1.0f);
+		//Print(f"Precision Hits: {NewValue}", 1.0f);
 	}
 
 	UFUNCTION(BlueprintOverride)
@@ -37,6 +37,7 @@ class USixShooterAttributes : UAngelscriptAttributeSet
 	{
 		if (EvaluatedData.Attribute.AttributeName == USixShooterAttributes::PrecisionHitsName)
 		{
+
 		}
 	}
 

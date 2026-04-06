@@ -35,7 +35,7 @@ struct FBulletHit
 	bool IsKill;
 
 	UPROPERTY(BlueprintReadOnly)
-	TArray<EExecuteCondition> ExecuteResults;
+	TArray<EEnchantExecuteTrigger> ExecuteResults;
 
 	UPROPERTY(BlueprintReadOnly)
 	FHitResult Hit;
@@ -81,6 +81,8 @@ struct FMagazineState
 
 class UGunComponent : UActorComponent
 {
+	default bReplicates = true;
+
 	UPROPERTY(Category = "Gun", EditDefaultsOnly, BlueprintReadOnly)
 	UWeaponDefinition DefaultGun;
 
@@ -241,15 +243,11 @@ class UGunComponent : UActorComponent
 	UPROPERTY(Category = "Events")
 	FOnMagazineEmpty OnMagazineEmpty;
 
-	FGameplayAbilitySpecHandle FireSpec;
-	FGameplayAbilitySpecHandle ReloadSpec;
-
-	UFUNCTION(BlueprintOverride)
-	void BeginPlay()
+	void Initialize()
 	{
 		OwningHero = Cast<APondHero>(GetOwner());
 
-		auto PS = Cast<APondPlayerState>(OwningHero.PlayerState);
+		auto PS = Cast<AScriptPondPlayerState>(OwningHero.PlayerState);
 		GenericGunAttributes = PS.GenericGunAttributes;
 		SpecificGunAttributes = PS.SpecificGunAttributes;
 
@@ -259,11 +257,18 @@ class UGunComponent : UActorComponent
 		ShootCooldown = 1.0 / WeaponDefinition.Stats.GetFireRate();
 		RPM = WeaponDefinition.Stats.GetFireRate() * 60;
 
-		auto ASC = AbilitySystem::GetAbilitySystemComponent(OwningHero.PlayerState);
-		FireSpec = ASC.GiveAbility(WeaponDefinition.FireGameplayAbility, 0, -1);
-		ReloadSpec = ASC.GiveAbility(WeaponDefinition.ReloadGameplayAbility, 0 - 1);
+		UAbilitySystemComponent ASC = AbilitySystem::GetAbilitySystemComponent(OwningHero.PlayerState);
+		if (GetOwner().HasAuthority())
+			GrantAbilities(ASC);
 
 		Ready();
+	}
+
+	UFUNCTION(Server)
+	void GrantAbilities(UAbilitySystemComponent ASC)
+	{
+		ASC.GiveAbility(WeaponDefinition.FireGameplayAbility, 0, -1);
+		ASC.GiveAbility(WeaponDefinition.ReloadGameplayAbility, 0, -1);
 	}
 
 	UFUNCTION(BlueprintOverride)
@@ -272,7 +277,7 @@ class UGunComponent : UActorComponent
 		TimeSinceLastShot += DeltaSeconds;
 
 		// Assumes player has not fired for a while, reset recoil index
-		if (TimeSinceLastShot > ShootCooldown * 2)
+		if (TimeSinceLastShot > 0.4)
 			RecoilIndex = 0;
 	}
 
@@ -294,7 +299,7 @@ class UGunComponent : UActorComponent
 		FVector Right = FVector::UpVector.CrossProduct(AimDirection).GetSafeNormal();
 		FVector Up = AimDirection.CrossProduct(Right).GetSafeNormal();
 
-		if (IsBulletProtected())
+		if (IsBulletProtected() && OwningHero.ResolveMovementState() == EPondMovementState::Still)
 		{
 			FVector FinalDirSansSpread = (AimDirection).GetSafeNormal();
 			return FinalDirSansSpread;
@@ -315,20 +320,35 @@ class UGunComponent : UActorComponent
 	FVector TraceEnd;
 
 	// for debug only.
-	EDrawDebugTrace DebugTrace = EDrawDebugTrace::ForDuration;
+	EDrawDebugTrace DebugTrace = EDrawDebugTrace::None;
 	float DebugTraceDuration = 1.0f;
 
 	FVector GetTargetPoint(float MaxDistance = 10000.0f)
 	{
-		auto CameraManager = Gameplay::GetPlayerCameraManager(0);
-		FVector CameraLocation = CameraManager.CameraLocation;
-		FVector CameraForward = CameraManager.ActorForwardVector;
+		FVector Location;
+		FRotator Rotation;
+		OwningHero.Controller.GetPlayerViewPoint(Location, Rotation);
+		FVector CameraLocation = Location;
+		FVector CameraForward = Rotation.ForwardVector;
 
 		TraceStart = CameraLocation;
 		TraceEnd = CameraLocation + CameraForward * MaxDistance;
 
+		// Get Target Point (the actual point the player is looking at)
 		FHitResult Hit;
-		System::LineTraceSingle(TraceStart, TraceEnd, ETraceTypeQuery::TraceTypeQuery3, false, TArray<AActor>(), DebugTrace, Hit, true, FLinearColor::Red, FLinearColor::Green, DebugTraceDuration);
+		System::LineTraceSingle(TraceStart,
+								TraceEnd,
+								ETraceTypeQuery::TraceTypeQuery3,
+								false,
+								TArray<AActor>(),
+								DebugTrace,
+								Hit,
+								true,
+								FLinearColor::Red,
+								FLinearColor::Green,
+								DebugTraceDuration);
+
+		Client_DrawDebugTargetPointTrace(TraceStart, TraceEnd, DebugTraceDuration);
 
 		FVector TargetPoint = Hit.bBlockingHit ? Hit.Location : TraceEnd;
 		return TargetPoint;
@@ -336,19 +356,22 @@ class UGunComponent : UActorComponent
 
 	TArray<FHitResult> Hits;
 	bool BlockingHit;
-	TArray<EExecuteCondition> SuccessfulConditions;
+	TArray<EEnchantExecuteTrigger> SuccessfulConditions;
 
 	TArray<FHitResult> Trace(float MaxDistance = 10000.0f, FBulletHit&out OutBulletHit = FBulletHit())
 	{
 		FVector AimDirection = (GetTargetPoint(MaxDistance) - TraceStart).GetSafeNormal();
 
-		FVector BulletDirection = ApplySpread(AimDirection, CurrentGun.GetSpread(OwningHero.MovementState), SpreadData);
+		EPondMovementState State;
+
+		FVector BulletDirection = ApplySpread(AimDirection, CurrentGun.GetSpread(OwningHero.ResolveMovementState()), SpreadData);
 
 		FVector End = TraceStart + BulletDirection * MaxDistance;
 
 		TArray<AActor> ActorsToIgnore;
 		ActorsToIgnore.Add(GetOwner()); // guncomponent is attached to character
 
+		// Perform spread trace (the point the bullet will hit)
 		BlockingHit = System::LineTraceMulti(TraceStart,
 											 End,
 											 ETraceTypeQuery::TraceTypeQuery3,
@@ -356,18 +379,20 @@ class UGunComponent : UActorComponent
 											 ActorsToIgnore,
 											 DebugTrace,
 											 Hits,
-											 true, // doesn't ignore the owning actor!!
+											 true, // doesn't ignore the owning actor!! (ignores this component)
 											 FLinearColor::Yellow,
 											 FLinearColor::Green,
 											 DebugTraceDuration);
 
+		Client_DrawDebugSpreadPointTrace(End, DebugTraceDuration);
+
 		if (!BlockingHit)
 		{
-			Print("Trace did not hit anything!", 2, FLinearColor(1.0, 0.5, 0.0));
+			Log("Trace did not hit anything!");
 			ShootSFX();
 
 			BulletHit = FBulletHit();
-			BulletHit.ExecuteResults.Add(EExecuteCondition::OnShot); // always onshot, even if we didnt hit anything
+			BulletHit.ExecuteResults.Add(EEnchantExecuteTrigger::OnShot); // always onshot, even if we didnt hit anything
 			return TArray<FHitResult>();
 		}
 
@@ -375,42 +400,28 @@ class UGunComponent : UActorComponent
 
 		auto Instigator = OwningHero.Controller;
 		auto HitEnemy = Cast<AEnemyBase>(LastHit.Actor);
+		bool WasEnemyHit = IsValid(HitEnemy);
 		float Damage = WeaponDefinition.GetDamage();
 
 		SuccessfulConditions.Empty();
-		SuccessfulConditions.Add(EExecuteCondition::OnShot);
+		SuccessfulConditions.Add(EEnchantExecuteTrigger::OnShot);
 
-		if (HitEnemy != nullptr && !HitEnemy.Attributes.OnEnemyHit.IsBound())
+		if (WasEnemyHit && !HitEnemy.Attributes.OnEnemyHit.IsBound())
 			HitEnemy.Attributes.OnEnemyHit.AddUFunction(this, n"OnEnemyHit");
 
 		BulletHit = FBulletHit();
 		BulletHit.Instigator = Instigator;
 		BulletHit.Damage = Damage;
 		BulletHit.Hit = LastHit;
-		BulletHit.IsPrecisionHit = LastHit.BoneName == n"Head";
+		BulletHit.IsPrecisionHit = WasEnemyHit && LastHit.BoneName == n"Head";
 
 		BulletHit.HitEnemy = HitEnemy;
-		if (IsValid(HitEnemy))
+		if (WasEnemyHit)
 		{
 			BulletHit.IsShieldBreak = (HitEnemy.CurrentShield - Damage) <= 0;
 			BulletHit.IsKill = (HitEnemy.CurrentHealth - Damage <= 0);
 		}
 
-		/*
-				if (IsValid(BulletHit.HitEnemy))
-					SuccessfulConditions.Add(EExecuteCondition::OnHit);
-				if (BulletHit.IsPrecisionHit)
-					SuccessfulConditions.Add(EExecuteCondition::OnPrecisionHit);
-				if (BulletHit.IsKill)
-					SuccessfulConditions.Add(EExecuteCondition::OnKill);
-				if (BulletHit.IsKill && BulletHit.IsPrecisionHit)
-					SuccessfulConditions.Add(EExecuteCondition::OnPrecisionKill);
-				for (auto& Result : SuccessfulConditions)
-				{
-					Print(f"{Result:n}", 0.5f);
-				}
-
-				*/
 		BulletHit.ExecuteResults = SuccessfulConditions;
 
 		ShootSFX();
@@ -437,6 +448,50 @@ class UGunComponent : UActorComponent
 		return Hits;
 	}
 
+	UFUNCTION(Client, Unreliable)
+	void Client_DrawDebugTargetPointTrace(FVector InStart, FVector InEnd, float InDuration = 1.0f)
+	{
+		FHitResult DummyHit;
+		System::LineTraceSingle(
+			InStart,
+			InEnd,
+			ETraceTypeQuery::TraceTypeQuery3,
+			false,
+			TArray<AActor>(),
+			EDrawDebugTrace::ForDuration,
+			DummyHit,
+			true,
+			FLinearColor::Red,
+			FLinearColor::Green,
+			InDuration);
+	}
+
+	UFUNCTION(Client, Unreliable)
+	void Client_DrawDebugSpreadPointTrace(FVector SpreadEnd, float InDuration = 1.0f)
+	{
+		FVector Location;
+		FRotator Rotation;
+		OwningHero.Controller.GetPlayerViewPoint(Location, Rotation);
+		FVector CameraLocation = Location;
+		FVector CameraForward = Rotation.ForwardVector;
+
+		FVector DebugTraceStart = CameraLocation;
+
+		FHitResult DummyHit;
+		System::LineTraceSingle(
+			DebugTraceStart,
+			SpreadEnd,
+			ETraceTypeQuery::TraceTypeQuery3,
+			false,
+			TArray<AActor>(),
+			EDrawDebugTrace::ForDuration,
+			DummyHit,
+			true,
+			FLinearColor::Yellow,
+			FLinearColor::Green,
+			InDuration);
+	}
+
 	UFUNCTION(NotBlueprintCallable)
 	private void OnEnemyHit(float DamageDealt, bool WasPrecision, bool Died)
 	{
@@ -444,27 +499,32 @@ class UGunComponent : UActorComponent
 			BulletHit.HitEnemy.Attributes.OnEnemyHit.Clear();
 
 		if (DamageDealt > 0)
-			SuccessfulConditions.Add(EExecuteCondition::OnHit);
+			SuccessfulConditions.Add(EEnchantExecuteTrigger::OnHit);
 		if (Died)
-			SuccessfulConditions.Add(EExecuteCondition::OnKill);
+			SuccessfulConditions.Add(EEnchantExecuteTrigger::OnKill);
 		if (WasPrecision)
-			SuccessfulConditions.Add(EExecuteCondition::OnPrecisionHit);
+			SuccessfulConditions.Add(EEnchantExecuteTrigger::OnPrecisionHit);
 		if (WasPrecision && Died)
-			SuccessfulConditions.Add(EExecuteCondition::OnPrecisionKill);
+			SuccessfulConditions.Add(EEnchantExecuteTrigger::OnPrecisionKill);
 
+		bool bShouldLog = true;
 		for (auto& Result : SuccessfulConditions)
 		{
-			Print(f"{Result:n}", 2.5f);
+			if (IsValid(BulletHit.HitEnemy))
+				LogIf(bShouldLog, n"Enchantments", f"Hit (\"{BulletHit.HitEnemy.ActorNameOrLabel}\") with condition \"{Result:n}\"");
 		}
 
-		auto ASC = AbilitySystem::GetAngelscriptAbilitySystemComponent(OwningHero.PlayerState);
+		auto ASC = AbilitySystem::GetAbilitySystemComponent(OwningHero.PlayerState);
 		for (auto EnchantClass : CurrentGun.Enchantments)
 		{
 			auto AsWepEnchant = Cast<UWeaponEnchantment>(EnchantClass.DefaultObject);
 
+			// if (!SuccessfulConditions.IsEmpty())
+			//	Print(f"Attempting to activate (up to) {SuccessfulConditions.Num()} enchants!", 1.5f, FLinearColor::DPink);
+
 			for (auto& Result : SuccessfulConditions)
 			{
-				if (Result == AsWepEnchant.ExecuteCondition)
+				if (Result == AsWepEnchant.Trigger)
 				{
 					auto Spec = FGameplayAbilitySpec(EnchantClass, 1, -1, nullptr);
 
@@ -477,6 +537,14 @@ class UGunComponent : UActorComponent
 				}
 			}
 		}
+	}
+
+	void InvokeEnchantment(TSubclassOf<UEnchantment> EnchantClass)
+	{
+		auto ASC = AbilitySystem::GetAbilitySystemComponent(OwningHero.PlayerState);	
+		auto Spec = FGameplayAbilitySpec(EnchantClass, 1, -1, nullptr);
+		ASC.GiveAbilityAndActivateOnceWithEventData(Spec, FGameplayEventData());
+		Log(f"Activating {EnchantClass.DefaultObject.DisplayName}");
 	}
 
 	void ShootSFX()
@@ -515,7 +583,7 @@ class UGunComponent : UActorComponent
 	{
 		for (FHitResult Hit : Hits)
 		{
-			if (Hit.Actor.IsA(APondCharacter) || Hit.Actor.IsA(APondHero))
+			if (Hit.Actor.IsA(AScriptPondCharacter) || Hit.Actor.IsA(APondHero))
 				continue;
 
 			int i = Hits.FindIndex(Hit);
@@ -548,7 +616,7 @@ class UGunComponent : UActorComponent
 		this.TriggeredTime = InTriggeredTime;
 
 		auto ASC = AbilitySystem::GetAngelscriptAbilitySystemComponent(OwningHero.PlayerState);
-		ASC.TryActivateAbility(FireSpec);
+		ASC.TryActivateAbilityByClass(WeaponDefinition.FireGameplayAbility);
 	}
 
 	/**
@@ -557,11 +625,6 @@ class UGunComponent : UActorComponent
 	UFUNCTION()
 	bool Shoot(FBulletHit&out Hit)
 	{
-		auto ASC = AbilitySystem::GetAngelscriptAbilitySystemComponent(OwningHero.PlayerState);
-
-		if (!GetOwner().HasAuthority())
-			return false;
-
 		switch (WeaponDefinition.FireMode)
 		{
 			case EFireMode::Semi:
@@ -635,7 +698,7 @@ class UGunComponent : UActorComponent
 						float32 InTriggeredTime, const UInputAction SourceAction)
 	{
 		auto ASC = AbilitySystem::GetAbilitySystemComponent(OwningHero.PlayerState);
-		ASC.TryActivateAbility(ReloadSpec);
+		ASC.TryActivateAbilityByClass(WeaponDefinition.ReloadGameplayAbility);
 	}
 
 	void Ready()

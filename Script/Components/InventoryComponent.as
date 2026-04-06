@@ -1,10 +1,11 @@
 class UInventoryComponent : UActorComponent
 {	
+	default bReplicates = true;
+
 	UPROPERTY()
 	TArray<UItemInstance> Backpack;
 
-	UFUNCTION(BlueprintOverride)
-	void BeginPlay()
+	void Initialize()
 	{
 		auto PS = Cast<APlayerState>(GetOwner());
 		auto Player = PS.Pawn;
@@ -43,7 +44,7 @@ class UInventoryComponent : UActorComponent
 		auto PS = Cast<APlayerState>(GetOwner());
 		if (!IsValid(PS) || !IsValid(PS.Pawn)) return nullptr;
 		
-		APondCharacter OwningCharacter = Cast<APondCharacter>(PS.Pawn);
+		AScriptPondCharacter OwningCharacter = Cast<AScriptPondCharacter>(PS.Pawn);
 		auto GunComponent = UGunComponent::Get(OwningCharacter);
 
 		// Initialize the instance

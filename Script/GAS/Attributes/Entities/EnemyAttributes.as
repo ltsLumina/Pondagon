@@ -12,13 +12,13 @@ event void FOnEnemyHit(float DamageDealt, bool WasPrecision, bool Died);
 
 class UEnemyAttributes : UAngelscriptAttributeSet
 {
-	UPROPERTY(BlueprintReadOnly, Category = "Hero Attributes")
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Health, Category = "Hero Attributes")
 	FAngelscriptGameplayAttributeData Health;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Hero Attributes")
 	FAngelscriptGameplayAttributeData MaxHealth;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Hero Attributes")
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Shield, Category = "Hero Attributes")
 	FAngelscriptGameplayAttributeData Shield;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Hero Attributes")
@@ -41,11 +41,34 @@ class UEnemyAttributes : UAngelscriptAttributeSet
 		MaxShield.Initialize(100.0f);
 	}
 
+	// #region On_Rep
+	UFUNCTION(NotBlueprintCallable)
+	void OnRep_Health(FAngelscriptGameplayAttributeData& OldAttributeData)
+	{
+		OnRep_Attribute(OldAttributeData);
+	}
+
+	UFUNCTION(NotBlueprintCallable)
+	void OnRep_Shield(FAngelscriptGameplayAttributeData& OldAttributeData)
+	{
+		OnRep_Attribute(OldAttributeData);
+	}
+	// #endregion
+
+	// ORDER OF EXECUTION AND RESPONSIBILITY
+	// 1. | PRE ATTRIBUTE CHANGE: Perform clamping for ASC to use.
+	// 2. | POST GAMEPLAY EFFECT EXECUTE: Update value to new clamped non-zero value, perform post-execute effects such as target death.
+	// 3. | POST ATTRIBUTE CHANGE: Broadcast attribute update to listeners.
+
 	UFUNCTION(BlueprintOverride)
 	void PreAttributeChange(FGameplayAttribute Attribute, float32& NewValue)
 	{
 		if (Attribute.AttributeName == UPlayerAttributes::HealthName)
 		{
+			// Value gets rounded to nearest whole value. Prevents enemy from having 0.5hp.
+			// This treatment is not done to players.
+			NewValue = Math::RoundToInt(NewValue);
+
 			NewValue = Math::Clamp(NewValue, 0.0f, MaxHealth.CurrentValue);
 		}
 		else if (Attribute.AttributeName == UPlayerAttributes::ShieldName)
@@ -61,7 +84,6 @@ class UEnemyAttributes : UAngelscriptAttributeSet
 		{
 			// Health.SetBaseValue(Math::Clamp(NewValue, 0.0f, MaxHealth.BaseValue));
 			HealthAttributeChanged.Broadcast(NewValue, OldValue);
-			OldHealth = OldValue;
 		}
 		else if (Attribute.AttributeName == UPlayerAttributes::ShieldName)
 		{
@@ -69,8 +91,6 @@ class UEnemyAttributes : UAngelscriptAttributeSet
 			ShieldAttributeChanged.Broadcast(NewValue, OldValue);
 		}
 	}
-
-	float OldHealth;
 
 	/**
 	 * CALLED ON THE SERVER ONLY!!
@@ -84,19 +104,14 @@ class UEnemyAttributes : UAngelscriptAttributeSet
 		{
 			Health.SetCurrentValue(Math::Clamp(Health.CurrentValue, 0, MaxHealth.CurrentValue));
 
-			bool WasPrecision = EffectSpec.DynamicAssetTags.HasTag(GameplayTags::Data_Precision);
-			float DamageDealt = OldHealth - Health.CurrentValue;
+			bool WasPrecision = EffectSpec.DynamicAssetTags.HasTag(GameplayTags::Data_IsPrecision);
+			float DamageDealt = EvaluatedData.Magnitude;
 			bool Died = Health.CurrentValue <= 0;
 
-			//Print(f"{WasPrecision=}");
-			//Print(f"{DamageDealt=}");
-			//Print(f"{Died=}");
-
 			OnEnemyHit.Broadcast(DamageDealt, WasPrecision, Died);
-			
+
 			if (Died)
 				EnemyBase.Death();
-
 		}
 		else if (EvaluatedData.Attribute.AttributeName == UPlayerAttributes::ShieldName)
 		{

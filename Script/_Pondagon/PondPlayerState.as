@@ -1,4 +1,4 @@
-class APondPlayerState : APlayerState
+class AScriptPondPlayerState : APondPlayerState
 {
 	UPROPERTY(DefaultComponent)
 	UAngelscriptAbilitySystemComponent AbilitySystem;
@@ -48,8 +48,31 @@ class APondPlayerState : APlayerState
 	// #endregion
 
 	UFUNCTION(BlueprintOverride)
-	void BeginPlay()
+	void ConstructionScript()
 	{
+		InventoryComponent = UInventoryComponent::Get(this);
+	}
+
+	bool HasInitialized;
+
+	UFUNCTION(BlueprintOverride)
+	void Tick(float DeltaSeconds)
+	{
+		if (Pawn != nullptr && !HasInitialized)
+		{
+			Initialize();
+			HasInitialized = true;
+		}
+	}
+
+	void Initialize()
+	{
+		auto Hero = Cast<APondHero>(Pawn);
+		check(Hero != nullptr);
+		check(!Hero.Definition.StartingData.IsEmpty());
+
+		InventoryComponent.Initialize();
+
 		auto GunComponent = UGunComponent::Get(Pawn);
 		TSubclassOf<UAngelscriptAttributeSet> CurrentGunAttributeSet = GunComponent.CurrentGun.WeaponDefinition.AttributeSet;
 
@@ -58,7 +81,11 @@ class APondPlayerState : APlayerState
 		SpecificGunAttributes = AbilitySystem.RegisterAttributeSet(CurrentGunAttributeSet);
 
 		AbilitySystem.InitAbilityActorInfo(this, Pawn);
-		AbilitySystem.InitStats(UPlayerAttributes, Cast<APondHero>(Pawn).Definition.AttributeSetDefaultStartingData);
+		for (auto& Data : Hero.Definition.StartingData)
+		{
+			AbilitySystem.RegisterAttributeSet(Data.Key); // Function ensures sets aren't added twice.
+			AbilitySystem.InitStats(Data.Key, Data.Value);
+		}
 
 #if EDITOR
 		float SpawnHealth = CurrentHealth;
@@ -71,8 +98,8 @@ class APondPlayerState : APlayerState
 namespace Pond
 {
 	UFUNCTION(BlueprintPure)
-	APondPlayerState GetPondPlayerStateBase()
+	AScriptPondPlayerState GetPondPlayerStateBase()
 	{
-		return Cast<APondPlayerState>(Gameplay::GetPlayerState(0));
+		return Cast<AScriptPondPlayerState>(Gameplay::GetPlayerState(0));
 	}
 }

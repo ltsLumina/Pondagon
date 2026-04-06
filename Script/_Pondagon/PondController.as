@@ -1,4 +1,4 @@
-class APondController : APlayerController
+class AScriptPondController : APlayerController
 {
     UPROPERTY(Category = "Input | Mapping Context", DefaultComponent, NotVisible, BlueprintReadOnly)
 	UEnhancedInputComponent InputComponent;
@@ -29,9 +29,20 @@ class APondController : APlayerController
 
     UPROPERTY(Category = "Input | Actions | Guns")
 	UInputAction ReloadAction;
-    
-    UFUNCTION(BlueprintOverride)
-    void BeginPlay()
+
+	bool HasInitialized;
+
+	UFUNCTION(BlueprintOverride)
+	void Tick(float DeltaSeconds)
+	{
+		if (ControlledPawn != nullptr && UEnhancedInputLocalPlayerSubsystem::Get(this) != nullptr && !HasInitialized)
+		{
+			Initialize();
+			HasInitialized = true;
+		}
+	}
+	
+    void Initialize()
     {
         PushInputComponent(InputComponent);
 

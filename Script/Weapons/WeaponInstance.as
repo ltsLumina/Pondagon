@@ -10,7 +10,7 @@ class UWeaponInstance : UItemInstance
 	TArray<TSubclassOf<UEnchantment>> Enchantments;
 
 	UPROPERTY(NotVisible, BlueprintReadOnly)
-	APondCharacter OwningCharacter;
+	AScriptPondCharacter OwningCharacter;
 
 	UPROPERTY(NotVisible, BlueprintReadOnly)
 	UGunComponent OwningGunComponent;
@@ -19,7 +19,7 @@ class UWeaponInstance : UItemInstance
 	void InitInstanceInfo(UWeaponDefinition InWeaponDefinition, AActor OwningActor, UActorComponent OwningComponent)
 	{
 		WeaponDefinition = InWeaponDefinition;
-		OwningCharacter = Cast<APondCharacter>(OwningActor);
+		OwningCharacter = Cast<AScriptPondCharacter>(OwningActor);
 		OwningGunComponent = Cast<UGunComponent>(OwningComponent);
 	}
 
@@ -56,9 +56,9 @@ class UWeaponInstance : UItemInstance
 		}
 
 		int RecoilIndex = OwningGunComponent.RecoilIndex;
-		Spread += Math::Clamp(Math::Pow(RecoilIndex / 7.0f, 1.8f), 0.25f, 1.0f);
+		Spread += Math::Clamp(Math::Pow(RecoilIndex / 7.0f, 1.8f), 0, WeaponDefinition.Stats.Core.Magazine);
 
-		Print(f"Spread: {Spread} degrees", 1, FLinearColor(0.5, 0.5, 1.0));
+		Print(f"{Spread=}° degrees", 1, FLinearColor(0.5, 0.5, 1.0));
 		return Spread;
 	}
 

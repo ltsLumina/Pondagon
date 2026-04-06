@@ -38,9 +38,16 @@ class AEnemyBase : AAngelscriptGASCharacter
 	UFUNCTION(BlueprintOverride)
 	void BeginPlay()
 	{
+		check(!Definition.StartingData.IsEmpty());
+		
 		Attributes = Cast<UEnemyAttributes>(AbilitySystem.RegisterAttributeSet(UEnemyAttributes));
 
 		AbilitySystem.InitAbilityActorInfo(this, this);
+		for (auto& Data : Definition.StartingData)
+		{
+			AbilitySystem.RegisterAttributeSet(Data.Key);
+			AbilitySystem.InitStats(Data.Key, Data.Value);
+		}
 
 #if EDITOR
 		float SpawnHealth = CurrentHealth;

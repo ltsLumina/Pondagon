@@ -5,6 +5,13 @@ namespace Math
 	{
 		return DistanceInCm / 100.0f;
 	}
+
+	UFUNCTION(BlueprintPure, Category = "Math", Meta = (CompactNodeTitle = "Round", Keywords = "round,decimal,places"))
+	float RoundTo(float Value, int DecimalPlaces)
+	{
+		float Multiplier = Math::Pow(10.0f, DecimalPlaces);
+		return Math::RoundToFloat(Value * Multiplier) / Multiplier;
+	}
 }
 
 namespace AbilitySystem
@@ -13,5 +20,57 @@ namespace AbilitySystem
 	UAngelscriptAbilitySystemComponent GetAngelscriptAbilitySystemComponent(AActor Actor)
 	{
 		return Cast<UAngelscriptAbilitySystemComponent>(AbilitySystem::GetAbilitySystemComponent(Actor));
+	}
+}
+
+namespace Asserts
+{
+	/**
+	 * Throw's a blueprint exception.
+	 */
+	UFUNCTION(Category = "Asserts", DisplayName = "Throw", Meta = (CompactNodeTitle = "throw"))
+	void Throw(FString Message)
+	{
+#if EDITOR
+		Print(f"Blueprint Exception: {Message}\n{Exception::GetFormattedCallStack()}", 8.0f, FLinearColor::Red);
+#endif
+	}
+
+	/**
+	 * Throw's a blueprint exception.
+	 */
+	UFUNCTION(Category = "Asserts", Meta = (CompactNodeTitle = "throw"))
+	void ThrowIf(bool Condition, FString Message)
+	{
+#if EDITOR
+		if (Condition)
+			Print(f"Blueprint Exception: {Message}\n{Exception::GetFormattedCallStack()}", 8.0f, FLinearColor::Red);
+#endif
+	}
+}
+
+namespace Editor
+{
+	/**
+	 * Whether the game is currently running in the editor.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Editor", Meta = (CompactNodeTitle = "Editor", Keywords = "editor,pc,platform"))
+	bool IsEditor()
+	{
+#if EDITOR
+		return true;
+#else
+		return false;
+#endif
+	}
+
+	UFUNCTION(Category = "Editor", Meta = (ExpandBoolAsExecs = "ReturnValue", Keywords = "editor,pc,platform"), DisplayName = "Is Editor")
+	bool IsEditor_Expanded()
+	{
+#if EDITOR
+		return true;
+#else
+		return false;
+#endif
 	}
 }
