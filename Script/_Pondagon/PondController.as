@@ -1,4 +1,4 @@
-class AScriptPondController : APlayerController
+class AScriptPondController : APondPlayerController
 {
     UPROPERTY(Category = "Input | Mapping Context", DefaultComponent, NotVisible, BlueprintReadOnly)
 	UEnhancedInputComponent InputComponent;

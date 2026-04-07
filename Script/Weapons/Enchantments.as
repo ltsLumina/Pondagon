@@ -25,7 +25,8 @@ UCLASS(Abstract, HideDropdown, NotBlueprintable, Meta = (PrioritizeCategories = 
 class UEnchantment : UGameplayAbility
 {
 	// Enchantments are always server authoritative and called as a result of a gameplay ability. Therefore, they are marked as ServerOnly.
-	default NetSecurityPolicy = EGameplayAbilityNetSecurityPolicy::ServerOnly;
+	//default NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
+	default NetSecurityPolicy = EGameplayAbilityNetSecurityPolicy::ClientOrServer;
 
 	UPROPERTY(Category = "Enchantment | Display")
 	FText DisplayName;

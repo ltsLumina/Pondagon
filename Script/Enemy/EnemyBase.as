@@ -2,7 +2,7 @@ class AEnemyBase : AAngelscriptGASCharacter
 {
 	UPROPERTY(Category = "Enemy | Details")
 	UEntityDefinition Definition;
-	
+
 	UPROPERTY(Category = "Enemy | GAS", EditDefaultsOnly)
 	TArray<TSubclassOf<UGameplayAbility>> InitialAbilities;
 
@@ -36,13 +36,13 @@ class AEnemyBase : AAngelscriptGASCharacter
 	// #endregion
 
 	UFUNCTION(BlueprintOverride)
-	void BeginPlay()
+	void Possessed(AController NewController)
 	{
 		check(!Definition.StartingData.IsEmpty());
-		
+
 		Attributes = Cast<UEnemyAttributes>(AbilitySystem.RegisterAttributeSet(UEnemyAttributes));
 
-		AbilitySystem.InitAbilityActorInfo(this, this);
+		AbilitySystem.InitAbilityActorInfo(NewController, this);
 		for (auto& Data : Definition.StartingData)
 		{
 			AbilitySystem.RegisterAttributeSet(Data.Key);

@@ -1,5 +1,5 @@
 UCLASS(Abstract)
-class AScriptPondCharacter : ACharacter
+class AScriptPondCharacter : APondCharacter
 {
 	
 }

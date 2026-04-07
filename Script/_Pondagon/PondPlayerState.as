@@ -2,7 +2,6 @@ class AScriptPondPlayerState : APondPlayerState
 {
 	UPROPERTY(DefaultComponent)
 	UAngelscriptAbilitySystemComponent AbilitySystem;
-	//default AbilitySystem = UAngelscriptAbilitySystemComponent::Create(this, n"AbilitySystem");
 
 	UPROPERTY(NotVisible, BlueprintReadOnly)
 	UInventoryComponent InventoryComponent;

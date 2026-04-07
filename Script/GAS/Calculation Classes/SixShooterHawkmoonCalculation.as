@@ -9,27 +9,22 @@ class UGEXC_SixShooterHawkmonCalculation : UGEXC_DamageCalculationBase
         //if (CurrentAmmo > 0) return;
 		if (!ExecutionParams.OwningSpec.DynamicAssetTags.HasTag(GameplayTags::Data_IsLastBullet)) return;
         
-        //float PrecisionHits = ASC.GetAttributeCurrentValue(USixShooterAttributes, USixShooterAttributes::PrecisionHitsName);
+		float BaseWeaponDamage = GetWeaponStats(ExecutionParams.SourceAbilitySystemComponent).GetDamage();
+
+		bool IsPrecisionHit = ExecutionParams.OwningSpec.DynamicAssetTags.HasTag(GameplayTags::Data_IsPrecision);
+		float Multiplier = GetWeaponStats(ExecutionParams.SourceAbilitySystemComponent).GetPrecision();
+		float PrecisionDamage = BaseWeaponDamage * (IsPrecisionHit ? Multiplier : 1.0f);
+
 		float PrecisionHits = ExecutionParams.OwningSpec.GetSetByCallerMagnitude(GameplayTags::SetByCaller_PrecisionHits, true, 0);
-        
-        UWeaponDefinition Def;
-        
-        auto PS = ExecutionParams.OwningSpec.GetContext().Instigator;
-        auto Char = Cast<APlayerState>(PS).Pawn;
-
-        auto GunComponent = UGunComponent::Get(Char).CurrentGun;
-        Def = GunComponent.WeaponDefinition;
-        
 		const float HAWKMOON_FACTOR = 0.25f;
-		float HawkmoonDamage = Def.GetDamage() * (1 + (PrecisionHits * HAWKMOON_FACTOR));
+		
+		float HawkmoonExpression = (1 + (PrecisionHits * HAWKMOON_FACTOR));
+		float HawkmoonDamage = PrecisionDamage * HawkmoonExpression;
 
-		FGameplayAttribute Attribute = UAngelscriptAttributeSet::GetGameplayAttribute(UEnemyAttributes, UEnemyAttributes::HealthName);
-        FGameplayModifierEvaluatedData EvaluatedData;
-        CalculationUtils::MakeOutputModifier(Attribute, -HawkmoonDamage, EvaluatedData);
+		PrintFromObject(this, f"{HawkmoonDamage=}", 2.5f, FLinearColor::Red);
 
-		PrintFromObject(Def, f"{HawkmoonDamage=}", 1.5f, FLinearColor::Red);
-
-		OutExecutionOutput.AddOutputModifier(EvaluatedData);
+		FDamageResult Result = CalculateDamageDistribution(HawkmoonDamage, false, 0, GetHealthMagnitude(ExecutionParams), GetShieldMagnitude(ExecutionParams));
+		OutExecutionOutput.ApplyGenericDamage(Result, this);
 	}
 }
 
