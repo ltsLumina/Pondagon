@@ -20,8 +20,4 @@ public:
 	virtual void PostNetInit() override;
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent)
 	void BP_PostNetInit();
-	
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerStateReady, APondPlayerState*, PlayerState);
-	UPROPERTY(BlueprintAssignable)
-	FOnPlayerStateReady OnPlayerStateReady;
 };

@@ -43,4 +43,9 @@ public:
 	virtual void OnRep_PlayerState() override;
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent)
 	void BP_OnRep_PlayerState();
+	
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerStateReady, APlayerState*, PlayerState);
+	
+	UPROPERTY(BlueprintAssignable)
+	FOnPlayerStateReady OnPlayerStateReady;
 };

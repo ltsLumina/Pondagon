@@ -7,7 +7,6 @@
 void APondPlayerState::BeginPlay()
 {
 	Super::BeginPlay();
-	OnPlayerStateReady.Broadcast(this);
 }
 
 void APondPlayerState::PostNetInit()

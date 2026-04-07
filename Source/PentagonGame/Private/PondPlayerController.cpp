@@ -19,4 +19,5 @@ void APondPlayerController::OnRep_PlayerState()
 {
 	Super::OnRep_PlayerState();
 	BP_OnRep_PlayerState();
+	OnPlayerStateReady.Broadcast(PlayerState);
 }
