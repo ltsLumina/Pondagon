@@ -26,9 +26,9 @@ namespace AbilitySystem
 namespace Asserts
 {
 	/**
-	 * Throw's a blueprint exception.
+	 * Throws a blueprint exception.
 	 */
-	UFUNCTION(Category = "Asserts", DisplayName = "Throw", Meta = (CompactNodeTitle = "throw"))
+	UFUNCTION(Category = "Asserts", DisplayName = "Throw", Meta = (CompactNodeTitle = "throw", DevelopmentOnly))
 	void Throw(FString Message)
 	{
 #if EDITOR
@@ -37,9 +37,9 @@ namespace Asserts
 	}
 
 	/**
-	 * Throw's a blueprint exception.
+	 * Throws a blueprint exception.
 	 */
-	UFUNCTION(Category = "Asserts", Meta = (CompactNodeTitle = "throw"))
+	UFUNCTION(Category = "Asserts", Meta = (CompactNodeTitle = "throw", DevelopmentOnly))
 	void ThrowIf(bool Condition, FString Message)
 	{
 #if EDITOR

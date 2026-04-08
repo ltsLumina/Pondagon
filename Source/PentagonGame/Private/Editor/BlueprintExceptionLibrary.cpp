@@ -1,9 +1,24 @@
 ﻿#include "BlueprintExceptionLibrary.h"
+#if WITH_EDITOR
+#include "Editor.h"
+#include "Blueprint/BlueprintExceptionInfo.h"
 #include "HAL/PlatformStackWalk.h"
 #include "Misc/AssertionMacros.h"
+#endif
+
+FString UBlueprintExceptionLibrary::GetCallStack()
+{
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST || USE_LOGGING_IN_SHIPPING)
+	FString ScriptStack = FFrame::GetScriptCallstack();
+	return ScriptStack;
+#else
+	return TEXT("Callstack is unavailable in Shipping builds.");
+#endif
+}
 
 FString UBlueprintExceptionLibrary::GetFormattedCallStack()
 {
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST || USE_LOGGING_IN_SHIPPING)
 	FString ScriptStack = FFrame::GetScriptCallstack();
 	ScriptStack.ReplaceInline(TEXT("/Game/"), TEXT(""));
 
@@ -69,10 +84,62 @@ FString UBlueprintExceptionLibrary::GetFormattedCallStack()
 	}
 
 	return ScriptStack;
+#else
+	return TEXT("Callstack is unavailable in Shipping builds.");
+#endif
 }
 
-FString UBlueprintExceptionLibrary::GetCallStack()
+void UBlueprintExceptionLibrary::BlueprintAssert(UObject* Target, const FString Message, const bool Breakpoint)
 {
-	FString ScriptStack = FFrame::GetScriptCallstack();
-	return ScriptStack;
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST || USE_LOGGING_IN_SHIPPING)
+	check(Target);
+	
+	const FString ProblemBlueprint = Target->GetName();
+	const FString HasBreakpointMessage = FString::Printf(TEXT("Assert Failed in Blueprint \"%s\":\n%s\n\nPress Retry to go to Blueprint. Otherwise, press Continue to keep playing."), *ProblemBlueprint, *Message);
+	const FString NoBreakpointMessage = FString::Printf(TEXT("Assert Failed in Blueprint \"%s\":\n%s\n\nPress Ok to keep playing."), *ProblemBlueprint, *Message);
+	const FText Description = FText::FromString(Breakpoint ? HasBreakpointMessage : NoBreakpointMessage);
+
+	// If Breakpoint is false, we can skip showing the "Retry" option since it won't do anything.
+	const EAppMsgType::Type MsgType = Breakpoint ? EAppMsgType::CancelRetryContinue : EAppMsgType::Ok;
+	
+	switch (FMessageDialog::Open(EAppMsgCategory::Warning, MsgType, Description, FText::FromString("Assert Failed")))
+	{
+	case EAppReturnType::Cancel: // STOP PLAYING
+			// Prompt user if they're sure they want to stop playing.
+			if (FMessageDialog::Open(EAppMsgCategory::Warning, EAppMsgType::YesNo, FText::FromString(TEXT("Do you want to end PIE? (Stop Playing)")), FText::FromString("Assert Failed")) == EAppReturnType::Yes)
+			{
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST || USE_LOGGING_IN_SHIPPING)
+				if (GEditor)
+				{
+					GEditor->RequestEndPlayMap();
+				}
+#endif
+			}
+			else // loop back to the start of the function.
+			{
+				BlueprintAssert(Target, Message, Breakpoint);
+			}
+			break;
+		
+	case EAppReturnType::Retry: // GO TO BLUEPRINT w/ DEBUGGER
+		if (Breakpoint)
+		{
+			// Must be called before throwing the exception, otherwise the window won't open unless you continue blueprint execution or end PIE.
+			const auto Tab = FGlobalTabmanager::Get()->TryInvokeTab(FName("BlueprintDebugger"), false);
+		
+			const FBlueprintExceptionInfo BreakpointExceptionInfo(EBlueprintExceptionType::Breakpoint, Description);
+			FBlueprintCoreDelegates::ThrowScriptException(Target, *FBlueprintContextTracker::Get().GetCurrentScriptStackWritable().Last(), BreakpointExceptionInfo);
+		}
+		break;
+		
+	case EAppReturnType::Ok:
+	case EAppReturnType::Continue: //  KEEP PLAYING
+		break;
+		
+	default:
+		break;
+	}
+#else
+	// do nothing in shipping
+#endif
 }
