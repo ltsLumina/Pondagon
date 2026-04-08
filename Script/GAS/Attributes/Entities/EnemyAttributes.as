@@ -12,16 +12,16 @@ event void FOnEnemyHit(float DamageDealt, bool WasPrecision, bool Died);
 
 class UEnemyAttributes : UAngelscriptAttributeSet
 {
-	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Health, Category = "Hero Attributes")
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Health, Category = "Enemy Attributes")
 	FAngelscriptGameplayAttributeData Health;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Hero Attributes")
+	UPROPERTY(BlueprintReadOnly, Category = "Enemy Attributes")
 	FAngelscriptGameplayAttributeData MaxHealth;
 
-	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Shield, Category = "Hero Attributes")
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Shield, Category = "Enemy Attributes")
 	FAngelscriptGameplayAttributeData Shield;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Hero Attributes")
+	UPROPERTY(BlueprintReadOnly, Category = "Enemy Attributes")
 	FAngelscriptGameplayAttributeData MaxShield;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Events")
@@ -88,12 +88,16 @@ class UEnemyAttributes : UAngelscriptAttributeSet
 		else if (Attribute.AttributeName == UPlayerAttributes::ShieldName)
 		{
 			// Shield.SetBaseValue(Math::Clamp(NewValue, 0.0f, MaxShield.BaseValue));
+			bool WasShieldBreak = NewValue <= OldValue;
+			// if (WasShieldBreak) AbilitySystem::SendGameplayEventToActor()
+
 			ShieldAttributeChanged.Broadcast(NewValue, OldValue);
 		}
 	}
 
 	/**
 	 * CALLED ON THE SERVER ONLY!!
+	 * ALSO ONLY CALLED ON BASE VALUE CHANGES, NOT CURRENT VALUE!
 	 */
 	UFUNCTION(BlueprintOverride)
 	void PostGameplayEffectExecute(FGameplayEffectSpec EffectSpec,
@@ -106,12 +110,25 @@ class UEnemyAttributes : UAngelscriptAttributeSet
 
 			bool WasPrecision = EffectSpec.DynamicAssetTags.HasTag(GameplayTags::Data_IsPrecision);
 			float DamageDealt = EvaluatedData.Magnitude;
-			bool Died = Health.CurrentValue <= 0;
+			bool WasKill = Health.CurrentValue <= 0;
 
-			OnEnemyHit.Broadcast(DamageDealt, WasPrecision, Died);
+			FGameplayEventData Payload;
+			FHitResult Hit;
+			EffectSpec.Context.GetHitResult(Hit);
 
-			if (Died)
+			Payload.Instigator = EffectSpec.Context.Instigator;
+			Payload.Target = Hit.Actor;
+			Payload.EventMagnitude = EvaluatedData.Magnitude;
+			Payload.TargetData = AbilitySystem::AbilityTargetDataFromHitResult(Hit);
+
+			auto InstigatorASC = AbilitySystem::GetAngelscriptAbilitySystemComponent(EffectSpec.Context.Instigator);
+			InstigatorASC.SendGameplayEvent(GetResultingTrigger(true, WasPrecision, WasKill), Payload);
+			// AbilitySystem::SendGameplayEventToActor(Hit.Actor, GetResultingTrigger(true, WasPrecision, WasKill), Payload);
+
+			if (WasKill)
 				EnemyBase.Death();
+
+			OnEnemyHit.Broadcast(DamageDealt, WasPrecision, WasKill);
 		}
 		else if (EvaluatedData.Attribute.AttributeName == UPlayerAttributes::ShieldName)
 		{
@@ -122,5 +139,21 @@ class UEnemyAttributes : UAngelscriptAttributeSet
 	AEnemyBase GetEnemyBase() property
 	{
 		return Cast<AEnemyBase>(GetOwningActor());
+	}
+
+	FGameplayTag GetResultingTrigger(bool WasHit, bool WasPrecision, bool WasKill)
+	{
+		FGameplayTag ResultTag;
+
+		if (WasHit)
+			ResultTag = GameplayTags::Enchantment_Trigger_OnHit;
+		if (WasHit && WasPrecision)
+			ResultTag = GameplayTags::Enchantment_Trigger_OnPrecisionHit;
+		if (WasHit && WasKill)
+			ResultTag = GameplayTags::Enchantment_Trigger_OnKill;
+		if (WasHit && WasPrecision && WasKill)
+			ResultTag = GameplayTags::Enchantment_Trigger_OnPrecisionKill;
+
+		return ResultTag;
 	}
 }

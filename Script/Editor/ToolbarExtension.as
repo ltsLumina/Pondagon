@@ -19,10 +19,19 @@ class UExampleToolbarExtension : UScriptEditorMenuExtension
 	/**
 	 * 
 	 */
-    UFUNCTION(CallInEditor, DisplayName = "GAS Docs", Meta = (EditorIcon = "Icons.Minus", EditorButtonStyle = "CalloutToolbar"))
+    UFUNCTION(CallInEditor, DisplayName = "GAS Docs", Meta = (EditorIcon = "Icons.Plus", EditorButtonStyle = "CalloutToolbar"))
 	void B_OpenGASDocumentation()
 	{
         System::LaunchURL("https://github.com/tranek/GASDocumentation");
+	}
+
+	/**
+	 * 
+	 */
+    UFUNCTION(CallInEditor, DisplayName = "AS Docs", Meta = (EditorIcon = "Icons.Plus", EditorButtonStyle = "CalloutToolbar"))
+	void C_OpenAngelscriptDocs()
+	{
+        System::LaunchURL("https://angelscript.hazelight.se/");
 	}
 };
 #endif

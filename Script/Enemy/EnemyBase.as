@@ -36,6 +36,12 @@ class AEnemyBase : AAngelscriptGASCharacter
 	// #endregion
 
 	UFUNCTION(BlueprintOverride)
+	void BeginPlay()
+	{
+		Attributes = Cast<UEnemyAttributes>(AbilitySystem.RegisterAttributeSet(UEnemyAttributes));
+	}
+
+	UFUNCTION(BlueprintOverride)
 	void Possessed(AController NewController)
 	{
 		check(!Definition.StartingData.IsEmpty());

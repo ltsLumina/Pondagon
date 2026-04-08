@@ -24,6 +24,11 @@ class APondHero : AScriptPondCharacter
 	UGunComponent GunComponent;
 	default GunComponent = UGunComponent::Get(this);
 
+	UPROPERTY(Category = "AS Components")
+	UAngelscriptAbilitySystemComponent AbilitySystem;
+
+	UPlayerAttributes Attributes;
+
 	UFUNCTION(BlueprintOverride)
 	void ConstructionScript()
 	{
@@ -123,28 +128,38 @@ class APondHero : AScriptPondCharacter
 	}
 	// #endregion
 
-	// #region Getter Helpers
-	UFUNCTION(BlueprintPure, BlueprintProtected)
-	private AScriptPondPlayerState GetPondPlayerState() property
-	{
-		return Cast<AScriptPondPlayerState>(PlayerState);
-	}
-
-	UFUNCTION(BlueprintPure)
-	UAngelscriptAbilitySystemComponent GetAbilitySystem() property
-	{
-		return PondPlayerState.AbilitySystem;
-	}
-
-	UFUNCTION(BlueprintPure)
-	UPlayerAttributes GetAttributes() property
-	{
-		return PondPlayerState.PlayerAttributes;
-	}
-	// #endregion
-
 	bool PrintMoveState = false;
 	bool HasInitialized = false;
+
+	UFUNCTION(BlueprintOverride)
+	void Possessed(AController NewController)
+	{
+		AScriptPondPlayerState PS = Cast<AScriptPondPlayerState>(PlayerState);
+		if (IsValid(PS))
+		{
+			// Set the ASC on the Server. Clients do this in OnRep_PlayerState()
+			AbilitySystem = AbilitySystem::GetAngelscriptAbilitySystemComponent(PS);
+
+			// AI won't have PlayerControllers so we can init again here just to be sure. No harm in initing twice for heroes that have PlayerControllers.
+			AbilitySystem::GetAngelscriptAbilitySystemComponent(PS).InitAbilityActorInfo(PS, this);
+
+			Attributes = Cast<UPlayerAttributes>(AbilitySystem.RegisterAttributeSet(UPlayerAttributes));
+		}
+	}
+
+	UFUNCTION(BlueprintOverride)
+	void OnRep_PlayerState()
+	{
+		AScriptPondPlayerState PS = Cast<AScriptPondPlayerState>(PlayerState);
+		if (IsValid(PS))
+		{
+			// Set the ASC for clients. Server does this in PossessedBy.
+			AbilitySystem = AbilitySystem::GetAngelscriptAbilitySystemComponent(PS);
+
+			// Init ASC Actor Info for clients. Server will init its ASC when it possesses a new Actor.
+			AbilitySystem.InitAbilityActorInfo(PS, this);
+		}
+	}
 
 	UFUNCTION(BlueprintOverride)
 	void Tick(float DeltaSeconds)

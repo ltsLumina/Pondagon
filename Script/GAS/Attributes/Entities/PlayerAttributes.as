@@ -16,20 +16,14 @@ class UPlayerAttributes : UAngelscriptAttributeSet
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Health, Category = "Hero Attributes")
 	FAngelscriptGameplayAttributeData Health;
 
-	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Shield, Category = "Hero Attributes")
+	UPROPERTY(BlueprintReadOnly, Category = "Hero Attributes")
 	FAngelscriptGameplayAttributeData MaxHealth;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Hero Attributes")
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Shield, Category = "Hero Attributes")
 	FAngelscriptGameplayAttributeData Shield;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Hero Attributes")
 	FAngelscriptGameplayAttributeData MaxShield;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Hero Attributes | Gun")
-	FAngelscriptGameplayAttributeData Ammo;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Hero Attributes | Gun")
-	FAngelscriptGameplayAttributeData MaxAmmo;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Events")
 	FOnHealthChanged HealthAttributeChanged;

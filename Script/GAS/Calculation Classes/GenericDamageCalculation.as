@@ -5,8 +5,8 @@
  */
 class UGEXC_GenericDamageCalculation : UGEXC_DamageCalculationBase
 {
-	default RelevantAttributesToCapture.Add(UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UEnemyAttributes::StaticClass(), UEnemyAttributes::HealthName, EGameplayEffectAttributeCaptureSource::Target, false));
-	default RelevantAttributesToCapture.Add(UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UEnemyAttributes::StaticClass(), UEnemyAttributes::ShieldName, EGameplayEffectAttributeCaptureSource::Target, false));
+	default RelevantAttributesToCapture.Add(UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UEnemyAttributes, UEnemyAttributes::HealthName, EGameplayEffectAttributeCaptureSource::Target, false));
+	default RelevantAttributesToCapture.Add(UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UEnemyAttributes, UEnemyAttributes::ShieldName, EGameplayEffectAttributeCaptureSource::Target, false));
 
 	UFUNCTION(BlueprintOverride)
 	void Execute(FGameplayEffectCustomExecutionParameters ExecutionParams,

@@ -4,7 +4,7 @@
 #include "BlueprintExceptionLibrary.generated.h"
 
 UCLASS()
-class PONDAGON_API UBlueprintExceptionLibrary : public UBlueprintFunctionLibrary
+class PENTAGONGAME_API UBlueprintExceptionLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 

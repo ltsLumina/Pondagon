@@ -10,7 +10,7 @@
  * 
  */
 UCLASS(Blueprintable, BlueprintType)
-class PONDAGON_API APondPlayerController : public APlayerController
+class PENTAGONGAME_API APondPlayerController : public APlayerController
 {
 	GENERATED_BODY()
 

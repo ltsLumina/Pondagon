@@ -134,8 +134,6 @@ void UBlueprintExceptionLibrary::BlueprintAssert(UObject* Target, const FString 
 		
 	case EAppReturnType::Ok:
 	case EAppReturnType::Continue: //  KEEP PLAYING
-		break;
-		
 	default:
 		break;
 	}

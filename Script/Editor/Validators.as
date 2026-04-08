@@ -28,13 +28,13 @@ namespace BlueprintValidation
 	UFUNCTION(Category = "Validation", Meta = (WorldContext = "InAsset"))
 	const UObject GetBlueprintGeneratedClass(UObject InAsset)
 	{
-		return Editor::GeneratedClass(Editor::GetBlueprintAsset(InAsset));
+		return Editor::GetBlueprintAsset(InAsset).GeneratedClass();
 	}
 
 	UFUNCTION(Category = "Validation", Meta = (WorldContext = "InAsset"))
 	const UObject GetBlueprintCDO(UObject InAsset)
 	{
-		return Editor::GeneratedClass(Editor::GetBlueprintAsset(InAsset)).GetDefaultObject();
+		return Editor::GetBlueprintAsset(InAsset).GeneratedClass().GetDefaultObject();
 	}
 
 	/**
@@ -54,7 +54,8 @@ namespace BlueprintValidation
 			FSubobjectData Data;
 			SubobjectData::GetData(Component, Data);
 
-			Components.Add(SubobjectData::GetObject(Data));
+			//Components.Add(SubobjectData::GetAssociatedObject(Data));
+			throw("DEPRECATED: THIS FUNCTION NO LONGER WORKS DUE TO 5.7+ API UPDATES.");
 		}
 
 		return Components.Num() > 0;

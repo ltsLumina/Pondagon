@@ -7,7 +7,7 @@
 #include "PondCharacter.generated.h"
 
 UCLASS()
-class PONDAGON_API APondCharacter : public ACharacter
+class PENTAGONGAME_API APondCharacter : public ACharacter
 {
 	GENERATED_BODY()
 

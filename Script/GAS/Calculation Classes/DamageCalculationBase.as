@@ -22,7 +22,7 @@ class UGEXC_DamageCalculationBase : UGameplayEffectExecutionCalculation
 	float32 GetHealthMagnitude(FGameplayEffectCustomExecutionParameters ExecutionParams, EGameplayEffectAttributeCaptureSource Source = EGameplayEffectAttributeCaptureSource::Target) const
 	{
 		float32 CurrentHealth = 0.f;
-		FGameplayEffectAttributeCaptureDefinition HealthAttribute = UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UEnemyAttributes::StaticClass(), UEnemyAttributes::HealthName, Source, false);
+		FGameplayEffectAttributeCaptureDefinition HealthAttribute = UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UEnemyAttributes, UEnemyAttributes::HealthName, Source, false);
 		ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(HealthAttribute, FGameplayEffectExecutionParameters(), CurrentHealth);
 		return CurrentHealth;
 	}
@@ -30,7 +30,7 @@ class UGEXC_DamageCalculationBase : UGameplayEffectExecutionCalculation
 	float32 GetShieldMagnitude(FGameplayEffectCustomExecutionParameters ExecutionParams, EGameplayEffectAttributeCaptureSource Source = EGameplayEffectAttributeCaptureSource::Target) const
 	{
 		float32 CurrentShield = 0.f;
-		FGameplayEffectAttributeCaptureDefinition HealthAttribute = UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UEnemyAttributes::StaticClass(), UEnemyAttributes::ShieldName, Source, false);
+		FGameplayEffectAttributeCaptureDefinition HealthAttribute = UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UEnemyAttributes, UEnemyAttributes::ShieldName, Source, false);
 		ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(HealthAttribute, FGameplayEffectExecutionParameters(), CurrentShield);
 		return CurrentShield;
 	}

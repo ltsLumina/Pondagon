@@ -18,7 +18,7 @@ class UGEXC_ChipDamageCalculation : UGEXC_DamageCalculationBase
 		bool IsPrecisionHit = ExecutionParams.OwningSpec.DynamicAssetTags.HasTag(GameplayTags::Data_IsPrecision);
 		float Multiplier = Def.Stats.Advanced.Precision;
 
-		auto EnemyAttributes = Cast<UEnemyAttributes>(ExecutionParams.TargetAbilitySystemComponent.GetAttributeSet(UEnemyAttributes));
+		auto EnemyAttributes = ExecutionParams.TargetAbilitySystemComponent.GetAttributeSet(UEnemyAttributes);
 
 		float BaseDamage = Def.GetDamage();
 		float CurrentHealth = EnemyAttributes.Health.CurrentValue;

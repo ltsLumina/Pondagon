@@ -4,8 +4,8 @@
  */
 class UGEXC_PrecisionHitCalculation : UGEXC_DamageCalculationBase
 {
-	default RelevantAttributesToCapture.Add(UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UEnemyAttributes::StaticClass(), UEnemyAttributes::HealthName, EGameplayEffectAttributeCaptureSource::Target, false));
-	default RelevantAttributesToCapture.Add(UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UEnemyAttributes::StaticClass(), UEnemyAttributes::ShieldName, EGameplayEffectAttributeCaptureSource::Target, false));
+	default RelevantAttributesToCapture.Add(UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UEnemyAttributes, UEnemyAttributes::HealthName, EGameplayEffectAttributeCaptureSource::Target, false));
+	default RelevantAttributesToCapture.Add(UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UEnemyAttributes, UEnemyAttributes::ShieldName, EGameplayEffectAttributeCaptureSource::Target, false));
 
 	UFUNCTION(BlueprintOverride)
 	void Execute(FGameplayEffectCustomExecutionParameters ExecutionParams,
@@ -21,12 +21,12 @@ class UGEXC_PrecisionHitCalculation : UGEXC_DamageCalculationBase
 		float Multiplier = Stats.GetPrecision();
 
 		float32 CurrentHealth = 0.f;
-		FGameplayEffectAttributeCaptureDefinition HealthAttribute = UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UEnemyAttributes::StaticClass(), n"Health", EGameplayEffectAttributeCaptureSource::Target, false);
+		FGameplayEffectAttributeCaptureDefinition HealthAttribute = UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UEnemyAttributes, n"Health", EGameplayEffectAttributeCaptureSource::Target, false);
 		ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(HealthAttribute, FGameplayEffectExecutionParameters(), CurrentHealth);
 
 		// TODO: Update source plugin UAngelscriptGameplayEffectUtils.cpp
 		float32 CurrentShield = 0.f;
-		auto AttributeDef = UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UEnemyAttributes::StaticClass(), n"Shield", EGameplayEffectAttributeCaptureSource::Target, false);
+		auto AttributeDef = UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UEnemyAttributes, n"Shield", EGameplayEffectAttributeCaptureSource::Target, false);
 		ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(AttributeDef, FGameplayEffectExecutionParameters(), CurrentShield);
 		
 		FDamageResult Result = CalculateDamageDistribution(BaseDamage, IsPrecisionHit, Multiplier, CurrentHealth, CurrentShield);

@@ -8,10 +8,10 @@ event void FOnAmmoChanged(float NewAmmo, float OldAmmo);
 
 class UGenericGunAttributes : UAngelscriptAttributeSet
 {
-	UPROPERTY(BlueprintReadOnly, Category = "Hero Attributes")
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_Ammo, Category = "Hero Attributes")
 	FAngelscriptGameplayAttributeData Ammo;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Gun Attributes")
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_MaxAmmo, Category = "Gun Attributes")
 	FAngelscriptGameplayAttributeData MaxAmmo;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Events")
@@ -22,6 +22,20 @@ class UGenericGunAttributes : UAngelscriptAttributeSet
 		Ammo.Initialize(30.0f);
 		MaxAmmo.Initialize(30.0f);
 	}
+
+	// #region On_Rep
+	UFUNCTION(NotBlueprintCallable)
+	void OnRep_Ammo(FAngelscriptGameplayAttributeData& OldAttributeData)
+	{
+		OnRep_Attribute(OldAttributeData);
+	}
+
+	UFUNCTION(NotBlueprintCallable)
+	void OnRep_MaxAmmo(FAngelscriptGameplayAttributeData& OldAttributeData)
+	{
+		OnRep_Attribute(OldAttributeData);
+	}
+	// #endregion
 
 	// ORDER OF EXECUTION AND RESPONSIBILITY
 	// 1. | PRE ATTRIBUTE CHANGE: Perform clamping for ASC to use.

@@ -35,9 +35,6 @@ struct FBulletHit
 	bool IsKill;
 
 	UPROPERTY(BlueprintReadOnly)
-	TArray<EEnchantExecuteTrigger> ExecuteResults;
-
-	UPROPERTY(BlueprintReadOnly)
 	FHitResult Hit;
 
 	FBulletHit(AController InInstigator, AEnemyBase InHitEnemy, float InDamage, bool InIsShieldBreak, bool InIsPrecisionKill, bool InIsKill, FHitResult InHitResult)
@@ -118,13 +115,15 @@ class UGunComponent : UActorComponent
 	UFUNCTION(Category = "Gun | Ammo", BlueprintPure)
 	int GetCurrentAmmo() property
 	{
-		return int(GenericGunAttributes.Ammo.CurrentValue);
+		float CurrentValue = OwningHero.AbilitySystem.GetAttributeCurrentValue(UGenericGunAttributes, UGenericGunAttributes::AmmoName);
+		return int(CurrentValue);
 	}
 
 	UFUNCTION(Category = "Gun | Ammo", BlueprintPure)
 	int GetCurrentMaxAmmo() property
 	{
-		return int(GenericGunAttributes.MaxAmmo.CurrentValue);
+		float CurrentValue = OwningHero.AbilitySystem.GetAttributeCurrentValue(UGenericGunAttributes, UGenericGunAttributes::MaxAmmoName);
+		return int(CurrentValue);
 	}
 
 	/**
@@ -248,16 +247,15 @@ class UGunComponent : UActorComponent
 		OwningHero = Cast<APondHero>(GetOwner());
 
 		auto PS = Cast<AScriptPondPlayerState>(OwningHero.PlayerState);
-		GenericGunAttributes = PS.GenericGunAttributes;
-		SpecificGunAttributes = PS.SpecificGunAttributes;
+		//SpecificGunAttributes = OwningHero.AbilitySystem.GetAttributeSet(USixShooterAttributes);
 
-		GenericGunAttributes.Ammo.Initialize(WeaponDefinition.Stats.Core.Magazine);
-		GenericGunAttributes.MaxAmmo.Initialize(WeaponDefinition.Stats.Core.Magazine);
+		//GenericGunAttributes.Ammo.Initialize(WeaponDefinition.Stats.Core.Magazine);
+		//GenericGunAttributes.MaxAmmo.Initialize(WeaponDefinition.Stats.Core.Magazine);
 
 		ShootCooldown = 1.0 / WeaponDefinition.Stats.GetFireRate();
 		RPM = WeaponDefinition.Stats.GetFireRate() * 60;
 
-		UAbilitySystemComponent ASC = AbilitySystem::GetAbilitySystemComponent(OwningHero.PlayerState);
+		UAbilitySystemComponent ASC = AbilitySystem::GetAngelscriptAbilitySystemComponent(OwningHero.PlayerState);
 		if (GetOwner().HasAuthority())
 			GrantAbilities(ASC);
 
@@ -269,6 +267,11 @@ class UGunComponent : UActorComponent
 	{
 		ASC.GiveAbility(WeaponDefinition.FireGameplayAbility, 0, -1);
 		ASC.GiveAbility(WeaponDefinition.ReloadGameplayAbility, 0, -1);
+
+		for (auto& Enchant : CurrentGun.Enchantments)
+		{
+			ASC.GiveAbility(Enchant);
+		}
 	}
 
 	UFUNCTION(BlueprintOverride)
@@ -358,11 +361,9 @@ class UGunComponent : UActorComponent
 	bool BlockingHit;
 	TArray<EEnchantExecuteTrigger> SuccessfulConditions;
 
-	TArray<FHitResult> Trace(float MaxDistance = 10000.0f, FBulletHit&out OutBulletHit = FBulletHit())
+	TArray<FHitResult> Trace(float MaxDistance = 10000.0f, FBulletHit&out OutBulletHit = FBulletHit(), FGameplayEventData&out Payload = FGameplayEventData())
 	{
 		FVector AimDirection = (GetTargetPoint(MaxDistance) - TraceStart).GetSafeNormal();
-
-		EPondMovementState State;
 
 		FVector BulletDirection = ApplySpread(AimDirection, CurrentGun.GetSpread(OwningHero.ResolveMovementState()), SpreadData);
 
@@ -392,7 +393,6 @@ class UGunComponent : UActorComponent
 			ShootSFX();
 
 			BulletHit = FBulletHit();
-			BulletHit.ExecuteResults.Add(EEnchantExecuteTrigger::OnShot); // always onshot, even if we didnt hit anything
 			return TArray<FHitResult>();
 		}
 
@@ -402,9 +402,6 @@ class UGunComponent : UActorComponent
 		auto HitEnemy = Cast<AEnemyBase>(LastHit.Actor);
 		bool WasEnemyHit = IsValid(HitEnemy);
 		float Damage = WeaponDefinition.GetDamage();
-
-		SuccessfulConditions.Empty();
-		SuccessfulConditions.Add(EEnchantExecuteTrigger::OnShot);
 
 		if (WasEnemyHit && !HitEnemy.Attributes.OnEnemyHit.IsBound())
 			HitEnemy.Attributes.OnEnemyHit.AddUFunction(this, n"OnEnemyHit");
@@ -422,7 +419,14 @@ class UGunComponent : UActorComponent
 			BulletHit.IsKill = (HitEnemy.CurrentHealth - Damage <= 0);
 		}
 
-		BulletHit.ExecuteResults = SuccessfulConditions;
+		Payload.Instigator = OwningHero.Controller;
+		Payload.Target = LastHit.Actor;
+		Payload.EventMagnitude = Damage;
+		Payload.TargetData = AbilitySystem::AbilityTargetDataFromHitResult(LastHit);
+
+		auto ASC = AbilitySystem::GetAngelscriptAbilitySystemComponent(OwningHero.PlayerState);
+		ASC.SendGameplayEvent(GameplayTags::Enchantment_Trigger_OnShot, Payload);
+		//AbilitySystem::SendGameplayEventToActor(ASC.Owner, GameplayTags::Enchantment_Trigger_OnShot, Payload)
 
 		ShootSFX();
 		HitSFX();
@@ -513,30 +517,6 @@ class UGunComponent : UActorComponent
 			if (IsValid(BulletHit.HitEnemy))
 				LogIf(bShouldLog, n"Enchantments", f"Hit (\"{BulletHit.HitEnemy.ActorNameOrLabel}\") with condition \"{Result:n}\"");
 		}
-
-		auto ASC = AbilitySystem::GetAbilitySystemComponent(OwningHero.PlayerState);
-		for (auto EnchantClass : CurrentGun.Enchantments)
-		{
-			auto AsWepEnchant = Cast<UWeaponEnchantment>(EnchantClass.DefaultObject);
-
-			// if (!SuccessfulConditions.IsEmpty())
-			//	Print(f"Attempting to activate (up to) {SuccessfulConditions.Num()} enchants!", 1.5f, FLinearColor::DPink);
-
-			for (auto& Result : SuccessfulConditions)
-			{
-				if (Result == AsWepEnchant.Trigger)
-				{
-					auto Spec = FGameplayAbilitySpec(EnchantClass, 1, -1, nullptr);
-
-					FGameplayEventData Payload;
-					Payload.ContextHandle = ASC.MakeEffectContext();
-					Payload.ContextHandle.AddHitResult(BulletHit.Hit, false);
-
-					ASC.GiveAbilityAndActivateOnceWithEventData(Spec, Payload);
-					Print(f"activating {AsWepEnchant.DisplayName}", 1.5f, FLinearColor(1.00, 0.07, 0.07));
-				}
-			}
-		}
 	}
 
 	void InvokeEnchantment(TSubclassOf<UEnchantment> EnchantClass)
@@ -623,7 +603,7 @@ class UGunComponent : UActorComponent
 	 * Generic shoot function.
 	 */
 	UFUNCTION()
-	bool Shoot(FBulletHit&out Hit)
+	bool Shoot(FBulletHit&out Hit, FGameplayEventData&out Payload)
 	{
 		switch (WeaponDefinition.FireMode)
 		{
@@ -650,7 +630,7 @@ class UGunComponent : UActorComponent
 
 		if (GetIsReady())
 		{
-			Hits = Trace(10000.0f, Hit);
+			Hits = Trace(10000.0f, Hit, Payload);
 
 			RecoilIndex++;
 

@@ -21,11 +21,11 @@ enum EEnchantExecuteTrigger
 	NONE,
 }
 
-UCLASS(Abstract, HideDropdown, NotBlueprintable, Meta = (PrioritizeCategories = "Enchantment | Display", "Enchantment | Spec"))
+UCLASS(Abstract, HideDropdown, NotBlueprintable, Meta = (PrioritizeCategories="Enchantment"))
 class UEnchantment : UGameplayAbility
 {
 	// Enchantments are always server authoritative and called as a result of a gameplay ability. Therefore, they are marked as ServerOnly.
-	//default NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
+	default NetExecutionPolicy = EGameplayAbilityNetExecutionPolicy::ServerOnly;
 	default NetSecurityPolicy = EGameplayAbilityNetSecurityPolicy::ClientOrServer;
 
 	UPROPERTY(Category = "Enchantment | Display")
@@ -40,14 +40,16 @@ class UEnchantment : UGameplayAbility
 	UPROPERTY(Category = "Enchantment | Display")
 	ERarity Rarity;
 
-	UPROPERTY(Category = "Enchantment | Execution")
-	EEnchantExecuteTrigger Trigger;
+	UPROPERTY(Category = "Enchantment | Execution", Meta = (Categories="Enchantment.Trigger"))
+	TArray<FAbilityTriggerData> Triggers;
 
 	/**
 	 * List of triggers to execute as a result of this enchantment activating.
 	 */
+/* DISABLED FOR NOW
 	UPROPERTY(Category = "Enchantment | Execution")
 	TArray<EEnchantExecuteTrigger> Triggers;
+*/
 
 	/**
 	 * Does this ability deal damage?
@@ -87,6 +89,7 @@ class UEnchantment : UGameplayAbility
 		DamageEffectHandle.Spec.SetByCallerMagnitude(GameplayTags::SetByCaller_Damage, Damage);
 	}
 
+/* DISABLED FOR NOW
 	UFUNCTION(BlueprintOverride)
 	void OnEndAbility(bool bWasCancelled)
 	{	
@@ -110,8 +113,8 @@ class UEnchantment : UGameplayAbility
 				}
 			}
 		}
-		
 	}
+*/
 
 	UFUNCTION(BlueprintPure)
 	protected UAngelscriptAbilitySystemComponent GetAngelscriptAbilitySystemComponent()
