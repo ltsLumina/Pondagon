@@ -58,7 +58,7 @@ class UGEC_StandardDamageCalculation : UGameplayModMagnitudeCalculation
 	UFUNCTION(BlueprintOverride)
 	float32 CalculateBaseMagnitude(FGameplayEffectSpec Spec) const
 	{
-		float FinalDamage = Spec.GetModifierMagnitude(0, false);
+		float FinalDamage = Spec.GetModifierMagnitude(0);
 		PrintFromObject(this, f"{FinalDamage=}", 11.5f, FLinearColor::Green);
 
 		return float32(FinalDamage);

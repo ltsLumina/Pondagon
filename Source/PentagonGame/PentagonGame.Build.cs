@@ -12,18 +12,18 @@ public class PentagonGame : ModuleRules
 
 		PublicDependencyModuleNames.AddRange(new[] { "Core", "CoreUObject", "Engine", "InputCore" });
 
-		//PublicDependencyModuleNames.AddRange(new string[] { "GameplayAbilities", "GameplayTags", "GameplayTasks" });
+		PublicDependencyModuleNames.AddRange(new string[] { "GameplayAbilities", "GameplayTags", "GameplayTasks" });
 
-		PrivateDependencyModuleNames.AddRange(new string[] { });
+		//PrivateDependencyModuleNames.AddRange(new string[] { });
 
 		if (Target.bBuildEditor)
 		{
 			PrivateDependencyModuleNames.AddRange(new[] { "UnrealEd", "Kismet" });
+
+			// Uncomment if you are using Slate UI
+			PrivateDependencyModuleNames.AddRange(new[] { "Slate", "SlateCore" });
 		}
-
-		// Uncomment if you are using Slate UI
-		PrivateDependencyModuleNames.AddRange(new[] { "Slate", "SlateCore" });
-
+		
 		// Uncomment if you are using online features
 		PrivateDependencyModuleNames.Add("OnlineSubsystem");
 
