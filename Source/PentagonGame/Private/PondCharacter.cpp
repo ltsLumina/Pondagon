@@ -3,10 +3,17 @@
 
 #include "PondCharacter.h"
 
+#include "PondCharacterMovementComponent.h"
 
-// Sets default values
-APondCharacter::APondCharacter()
+#include "Components/CapsuleComponent.h"
+
+APondCharacter::APondCharacter(const class FObjectInitializer& ObjectInitializer) :
+	Super(ObjectInitializer.SetDefaultSubobjectClass<UPondCharacterMovementComponent>(CharacterMovementComponentName))
 {
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Overlap);
+
+	bAlwaysRelevant = true;
+	
 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 }

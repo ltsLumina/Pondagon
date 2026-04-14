@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "PondCharacterMovementComponent.h"
+
 #include "GameFramework/Character.h"
 #include "PondCharacter.generated.h"
 
@@ -12,9 +14,11 @@ class PENTAGONGAME_API APondCharacter : public ACharacter
 	GENERATED_BODY()
 
 public:
-	// Sets default values for this character's properties
-	APondCharacter();
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	TSubclassOf<UPondCharacterMovementComponent> MovementComponentClass;
 
+	explicit APondCharacter(const class FObjectInitializer& ObjectInitializer);
+	
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
