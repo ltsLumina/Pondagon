@@ -1,4 +1,4 @@
-class AEnemyBase : AAngelscriptGASCharacter
+class AScriptEnemyBase : AEnemyBase
 {
 	UPROPERTY(Category = "Enemy | Details")
 	UEntityDefinition Definition;

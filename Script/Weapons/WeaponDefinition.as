@@ -5,7 +5,7 @@ enum EEquipSpeed
 	Instant
 }
 
-UCLASS(Meta = (PrioritizeCategories="Gun | GAS"))
+UCLASS(Meta = (PrioritizeCategories = "Gun | GAS"))
 class UWeaponDefinition : UPrimaryDataAsset
 {
 	UPROPERTY(Category = "Definition", EditDefaultsOnly, BlueprintReadOnly)
@@ -122,6 +122,13 @@ class UWeaponDefinition : UPrimaryDataAsset
 	UPROPERTY(Category = "Gun | Accuracy | Bullets", EditDefaultsOnly, BlueprintReadOnly, Meta = (ClampMin = "1", UIMin = "1", ClampMax = "30", UIMax = "30"))
 	int MaxSpreadBullet = 6;
 
+	/**
+	 * Curve for the rate of change (delta) in spread intensity.
+	 * Easing early results in less spread at the start of the spread, and vice versa toward the end.
+	 * Reaches the maximum spread by 'MaxSpreadBullet'.
+	 */
+	UPROPERTY(Category = "Gun | Accuracy | Spread", EditDefaultsOnly, Meta = (DisplayThumbnail = true))
+	UCurveFloat SpreadCurve;
 	UPROPERTY(Category = "Gun | Accuracy | 1st Shot Spread", EditDefaultsOnly, Meta = (Units = "Degrees"))
 	float StandingSpread = 0.25f;
 	UPROPERTY(Category = "Gun | Accuracy | 1st Shot Spread", EditDefaultsOnly, Meta = (Units = "Degrees"))
@@ -308,7 +315,7 @@ struct FWeaponAdvancedStats
 	UPROPERTY(BlueprintReadOnly, Meta = (Units = "s"))
 	float ReloadSpeed = 3;
 
-	UPROPERTY(BlueprintReadOnly, DisplayName = "Aim Assist", Meta = (Units="degrees"))
+	UPROPERTY(BlueprintReadOnly, DisplayName = "Aim Assist", Meta = (Units = "degrees"))
 	float BulletMagnetization = 1.61f;
 
 	UPROPERTY(BlueprintReadOnly, Meta = (Units = "%"))

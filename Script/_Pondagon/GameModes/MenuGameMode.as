@@ -13,5 +13,8 @@ class AMenuGameMode : AGameModeBase
 		Widget.AddToViewport();
 
 		Widget.InitSteam(NewPlayer);
+
+		Widget::SetInputMode_UIOnlyEx(NewPlayer, Widget, EMouseLockMode::LockInFullscreen, true);
+		NewPlayer.bShowMouseCursor = true;
 	}
 }

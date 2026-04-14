@@ -2,28 +2,64 @@ namespace UGenericGunAttributes
 {
 	const FName AmmoName = n"Ammo";
 	const FName MaxAmmoName = n"MaxAmmo";
+	const FName MagazineName = n"Magazine";
+	const FName ZoomName = n"Zoom";
+	const FName FireRateName = n"FireRate";
+	const FName ReloadSpeedName = n"ReloadSpeed";
+	const FName AimAssistName = n"AimAssist";
+	const FName RecoilName = n"Recoil";
+	const FName PrecisionName = n"Precision";
+	const FName DamageName = n"Damage";
 }
 
 event void FOnAmmoChanged(float NewAmmo, float OldAmmo);
 
 class UGenericGunAttributes : UAngelscriptAttributeSet
 {
-	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_Ammo, Category = "Hero Attributes")
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_Ammo, Category = "Gun Attributes")
 	FAngelscriptGameplayAttributeData Ammo;
 
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_MaxAmmo, Category = "Gun Attributes")
 	FAngelscriptGameplayAttributeData MaxAmmo;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Events")
-	FOnAmmoChanged AmmoAttributeChanged;
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_Zoom, Category = "Gun Attributes")
+	FAngelscriptGameplayAttributeData Zoom;
+
+	/**
+	 * Fire-rate in rounds/sec
+	 */
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_FireRate, Category = "Gun Attributes")
+	FAngelscriptGameplayAttributeData FireRate;
+
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_ReloadSpeed, Category = "Gun Attributes")
+	FAngelscriptGameplayAttributeData ReloadSpeed;
+
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_AimAssist, Category = "Gun Attributes")
+	FAngelscriptGameplayAttributeData AimAssist;
+
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_Recoil, Category = "Gun Attributes")
+	FAngelscriptGameplayAttributeData Recoil;
+
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_Precision, Category = "Gun Attributes")
+	FAngelscriptGameplayAttributeData Precision;
+
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_Damage, Category = "Gun Attributes")
+	FAngelscriptGameplayAttributeData Damage;
 
 	UGenericGunAttributes()
 	{
 		Ammo.Initialize(30.0f);
 		MaxAmmo.Initialize(30.0f);
+		Zoom.Initialize(1.0f);
+		FireRate.Initialize(30.0f);
+		ReloadSpeed.Initialize(1.0f);
+		AimAssist.Initialize(1.5f);
+		Recoil.Initialize(1.0f);
+		Precision.Initialize(1.5f);
+		Damage.Initialize(10.0f);
 	}
 
-	// #region On_Rep
+	/* #region OnRep */
 	UFUNCTION(NotBlueprintCallable)
 	void OnRep_Ammo(FAngelscriptGameplayAttributeData& OldAttributeData)
 	{
@@ -35,7 +71,49 @@ class UGenericGunAttributes : UAngelscriptAttributeSet
 	{
 		OnRep_Attribute(OldAttributeData);
 	}
-	// #endregion
+
+	UFUNCTION(NotBlueprintCallable)
+	void OnRep_Zoom(FAngelscriptGameplayAttributeData& OldAttributeData)
+	{
+		OnRep_Attribute(OldAttributeData);
+	}
+
+	UFUNCTION(NotBlueprintCallable)
+	void OnRep_FireRate(FAngelscriptGameplayAttributeData& OldAttributeData)
+	{
+		OnRep_Attribute(OldAttributeData);
+	}
+
+	UFUNCTION(NotBlueprintCallable)
+	void OnRep_ReloadSpeed(FAngelscriptGameplayAttributeData& OldAttributeData)
+	{
+		OnRep_Attribute(OldAttributeData);
+	}
+
+	UFUNCTION(NotBlueprintCallable)
+	void OnRep_AimAssist(FAngelscriptGameplayAttributeData& OldAttributeData)
+	{
+		OnRep_Attribute(OldAttributeData);
+	}
+
+	UFUNCTION(NotBlueprintCallable)
+	void OnRep_Recoil(FAngelscriptGameplayAttributeData& OldAttributeData)
+	{
+		OnRep_Attribute(OldAttributeData);
+	}
+
+	UFUNCTION(NotBlueprintCallable)
+	void OnRep_Precision(FAngelscriptGameplayAttributeData& OldAttributeData)
+	{
+		OnRep_Attribute(OldAttributeData);
+	}
+
+	UFUNCTION(NotBlueprintCallable)
+	void OnRep_Damage(FAngelscriptGameplayAttributeData& OldAttributeData)
+	{
+		OnRep_Attribute(OldAttributeData);
+	}
+	/* #endregion */
 
 	// ORDER OF EXECUTION AND RESPONSIBILITY
 	// 1. | PRE ATTRIBUTE CHANGE: Perform clamping for ASC to use.
@@ -58,7 +136,6 @@ class UGenericGunAttributes : UAngelscriptAttributeSet
 		if (Attribute.AttributeName == UGenericGunAttributes::AmmoName)
 		{
 			Print(f"Remaining Ammo: {NewValue}", 1.0f, FLinearColor::Purple);
-			AmmoAttributeChanged.Broadcast(NewValue, OldValue);
 		}
 	}
 
@@ -67,7 +144,7 @@ class UGenericGunAttributes : UAngelscriptAttributeSet
 								   FGameplayModifierEvaluatedData& EvaluatedData,
 								   UAngelscriptAbilitySystemComponent AbilitySystemComponent)
 	{
-		if (EvaluatedData.Attribute.AttributeName == UPlayerAttributes::AmmoName)
+		if (EvaluatedData.Attribute.AttributeName == UGenericGunAttributes::AmmoName)
 		{
 			Ammo.SetCurrentValue(Math::Clamp(Ammo.CurrentValue, 0, MaxAmmo.CurrentValue));
 		}

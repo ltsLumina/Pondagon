@@ -23,45 +23,6 @@ class UWeaponInstance : UItemInstance
 		OwningGunComponent = Cast<UGunComponent>(OwningComponent);
 	}
 
-	// - accuracy helpers
-
-	UFUNCTION(BlueprintPure, Category = "Gun | Accuracy")
-	float GetSpread(EPondMovementState MovementState)
-	{
-		float Spread;
-
-		switch (MovementState)
-		{
-			case EPondMovementState::Still:
-				Spread = WeaponDefinition.StandingSpread;
-				break;
-			case EPondMovementState::Airborne:
-				Spread = WeaponDefinition.AirbornePenalty;
-				break;
-			case EPondMovementState::Crouch:
-				Spread = WeaponDefinition.CrouchSpread;
-				break;
-			case EPondMovementState::Run:
-				Spread = WeaponDefinition.RunPenalty;
-				break;
-			case EPondMovementState::Walk:
-				Spread = WeaponDefinition.WalkPenalty;
-				break;
-			case EPondMovementState::CrouchWalk:
-				Spread = WeaponDefinition.CrouchPenalty;
-				break;
-			default:
-				Spread = WeaponDefinition.StandingSpread;
-				break;
-		}
-
-		int RecoilIndex = OwningGunComponent.RecoilIndex;
-		Spread += Math::Clamp(Math::Pow(RecoilIndex / 7.0f, 1.8f), 0, WeaponDefinition.Stats.Core.Magazine);
-
-		Print(f"{Spread=}° degrees", 1, FLinearColor(0.5, 0.5, 1.0));
-		return Spread;
-	}
-
 	// Enchanting
 
 	UFUNCTION(Category = "Enchanting")

@@ -25,12 +25,6 @@ class UEnemyAttributes : UAngelscriptAttributeSet
 	FAngelscriptGameplayAttributeData MaxShield;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Events")
-	FOnHealthChanged HealthAttributeChanged;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Events")
-	FOnShieldChanged ShieldAttributeChanged;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Events")
 	FOnEnemyHit OnEnemyHit;
 
 	UEnemyAttributes()
@@ -83,15 +77,12 @@ class UEnemyAttributes : UAngelscriptAttributeSet
 		if (Attribute.AttributeName == UPlayerAttributes::HealthName)
 		{
 			// Health.SetBaseValue(Math::Clamp(NewValue, 0.0f, MaxHealth.BaseValue));
-			HealthAttributeChanged.Broadcast(NewValue, OldValue);
 		}
 		else if (Attribute.AttributeName == UPlayerAttributes::ShieldName)
 		{
 			// Shield.SetBaseValue(Math::Clamp(NewValue, 0.0f, MaxShield.BaseValue));
 			bool WasShieldBreak = NewValue <= OldValue;
 			// if (WasShieldBreak) AbilitySystem::SendGameplayEventToActor()
-
-			ShieldAttributeChanged.Broadcast(NewValue, OldValue);
 		}
 	}
 
@@ -136,9 +127,9 @@ class UEnemyAttributes : UAngelscriptAttributeSet
 		}
 	}
 
-	AEnemyBase GetEnemyBase() property
+	AScriptEnemyBase GetEnemyBase() property
 	{
-		return Cast<AEnemyBase>(GetOwningActor());
+		return Cast<AScriptEnemyBase>(GetOwningActor());
 	}
 
 	FGameplayTag GetResultingTrigger(bool WasHit, bool WasPrecision, bool WasKill)

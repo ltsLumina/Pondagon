@@ -13,17 +13,25 @@ class UEntityDefinition : UDataAsset
 	UFUNCTION(Category = "Debug", CallInEditor, DisplayName = "Make Player Definition")
 	void MakePlayerDefButton()
 	{
+		System::BeginTransaction("UnrealEd", FText::FromString("Create default Player Starting Data."), this);
+		System::TransactObject(this);
+
 		StartingData.Empty();
 
 		StartingData.Add(UPlayerAttributes, nullptr);
 		StartingData.Add(UGenericGunAttributes, nullptr);
+		System::EndTransaction();
 	}
 
 	UFUNCTION(Category = "Debug", CallInEditor, DisplayName = "Make Enemy Definition")
 	void MakeEnemyDefButton()
 	{
+		System::BeginTransaction("UnrealEd", FText::FromString("Create default Player Starting Data."), this);
+		System::TransactObject(this);
+
 		StartingData.Empty();
 		
 		StartingData.Add(UEnemyAttributes, nullptr);
+		System::EndTransaction();
 	}
 }

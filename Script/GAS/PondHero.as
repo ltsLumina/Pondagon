@@ -10,9 +10,6 @@ enum EPondMovementState
 
 class APondHero : AScriptPondCharacter
 {
-	default bReplicates = true;
-	default bReplicateMovement = true;
-
 	// Components
 	UPROPERTY(DefaultComponent, Attach = "CharacterMesh0")
 	USkeletalMeshComponent FirstPersonMesh;
@@ -23,17 +20,6 @@ class APondHero : AScriptPondCharacter
 	UPROPERTY(Category = "AS Components", BlueprintReadOnly)
 	UGunComponent GunComponent;
 	default GunComponent = UGunComponent::Get(this);
-
-	UPROPERTY(Category = "AS Components")
-	UAngelscriptAbilitySystemComponent AbilitySystem;
-
-	UPlayerAttributes Attributes;
-
-	UFUNCTION(BlueprintOverride)
-	void ConstructionScript()
-	{
-		GunComponent = UGunComponent::Get(this);
-	}
 	//~Components
 
 	// Details
@@ -43,93 +29,12 @@ class APondHero : AScriptPondCharacter
 	UPROPERTY(Category = "Player | Visuals")
 	UParticleSystem DeathEffect;
 
-	UFUNCTION(BlueprintPure)
-	EPondMovementState ResolveMovementState()
+	UFUNCTION(BlueprintOverride)
+	void ConstructionScript()
 	{
-		switch (CharacterMovement.MovementMode)
-		{
-			case EMovementMode::MOVE_Walking:
-				// NOT MOVING
-				if (CharacterMovement.Velocity.IsNearlyZero()) // TODO: maybe do IsWalkingOnGround()
-				{
-					if (CharacterMovement.IsCrouching())
-					{
-						return EPondMovementState::Crouch;
-					}
-					else
-					{
-						return EPondMovementState::Still;
-					}
-				}
-				// IS MOVING
-				else
-				{
-					if (CharacterMovement.IsCrouching())
-					{
-						return EPondMovementState::CrouchWalk;
-					}
-					else if (CharacterMovement.IsMovingOnGround())
-					{
-						return EPondMovementState::Run;
-					}
-				}
-				break;
-
-			case EMovementMode::MOVE_Falling:
-			{
-				// IS AIRBORNE
-				if (CharacterMovement.IsFalling())
-				{
-					return EPondMovementState::Airborne;
-				}
-			}
-			break;
-
-			case EMovementMode::MOVE_None:
-			case EMovementMode::MOVE_NavWalking:
-			case EMovementMode::MOVE_Swimming:
-			case EMovementMode::MOVE_Flying:
-			case EMovementMode::MOVE_Custom:
-			default:
-				return EPondMovementState::Still;
-		}
-
-		return EPondMovementState::Still;
+		Super::ConstructionScript();
+		GunComponent = UGunComponent::Get(this);
 	}
-
-	UPROPERTY(Category = "Player | Movement", VisibleInstanceOnly)
-	EPondMovementState PreviousMovementState;
-	default PreviousMovementState = EPondMovementState::Run;
-	//~Details
-
-	// #region Attribute Getters
-	UFUNCTION(BlueprintPure)
-	float GetCurrentHealth() property
-	{
-		return Attributes.Health.CurrentValue;
-	}
-
-	UFUNCTION(BlueprintPure)
-	float GetBaseHealth() property
-	{
-		return Attributes.Health.BaseValue;
-	}
-
-	UFUNCTION(BlueprintPure)
-	float GetCurrentShield() property
-	{
-		return Attributes.Shield.CurrentValue;
-	}
-
-	UFUNCTION(BlueprintPure)
-	float GetBaseShield() property
-	{
-		return Attributes.Shield.BaseValue;
-	}
-	// #endregion
-
-	bool PrintMoveState = false;
-	bool HasInitialized = false;
 
 	UFUNCTION(BlueprintOverride)
 	void Possessed(AController NewController)
@@ -143,7 +48,13 @@ class APondHero : AScriptPondCharacter
 			// AI won't have PlayerControllers so we can init again here just to be sure. No harm in initing twice for heroes that have PlayerControllers.
 			AbilitySystem::GetAngelscriptAbilitySystemComponent(PS).InitAbilityActorInfo(PS, this);
 
+			// Set the AttributeSet for convenience attribute functions
 			Attributes = Cast<UPlayerAttributes>(AbilitySystem.RegisterAttributeSet(UPlayerAttributes));
+
+			for (auto& Data : Definition.StartingData)
+			{
+				AbilitySystem.InitStats(Data.Key, Data.Value);
+			}
 		}
 	}
 
@@ -158,12 +69,25 @@ class APondHero : AScriptPondCharacter
 
 			// Init ASC Actor Info for clients. Server will init its ASC when it possesses a new Actor.
 			AbilitySystem.InitAbilityActorInfo(PS, this);
+
+			// Set the AttributeSet for convenience attribute functions
+			Attributes = Cast<UPlayerAttributes>(AbilitySystem.RegisterAttributeSet(UPlayerAttributes));
+
+			for (auto& Data : Definition.StartingData)
+			{
+				AbilitySystem.InitStats(Data.Key, Data.Value);
+			}
 		}
 	}
+
+	bool PrintMoveState = false;
+	bool HasInitialized = false;
 
 	UFUNCTION(BlueprintOverride)
 	void Tick(float DeltaSeconds)
 	{
+		Super::Tick(DeltaSeconds);
+		
 		if (PrintMoveState)
 		{
 			auto State = ResolveMovementState();
@@ -175,25 +99,19 @@ class APondHero : AScriptPondCharacter
 		{
 			GunComponent.Initialize();
 			HasInitialized = true;
+
+#if EDITOR
+			float SpawnHealth = Health;
+			float SpawnShield = Shield;
+			Print(f"{ActorNameOrLabel} has spawned with {SpawnHealth} health and {SpawnShield} Shield.", 2.5f, FLinearColor::Green);
+#endif
 		}
 	}
 
 	UFUNCTION()
-	void Death()
+	void Stun()
 	{
-		if (AbilitySystem.HasGameplayTag(GameplayTags::Character_State_Dead))
-			return;
-		else
-			AbilitySystem.AddLooseGameplayTag(GameplayTags::Character_State_Dead);
-
-		FGameplayEffectQuery Query;
-		for (FActiveGameplayEffectHandle Handle : AbilitySystem.GetActiveEffects(Query))
-		{
-			AbilitySystem.RemoveActiveGameplayEffect(Handle);
-		}
-
-		PrintWarning("Player died!");
-		DestroyActor();
+		AbilitySystem.AddLooseGameplayTag(GameplayTags::Character_State_Stunned);
 	}
 
 	// #region Movement State Handling

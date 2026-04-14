@@ -6,6 +6,8 @@ namespace UPlayerAttributes
 	const FName MaxShieldName = n"MaxShield";
 	const FName AmmoName = n"Ammo";
 	const FName MaxAmmoName = n"MaxAmmo";
+	const FName MoveSpeedName = n"MoveSpeed";
+	const FName MaxMoveSpeedName = n"MaxMoveSpeed";
 }
 
 event void FOnHealthChanged(float NewHealth, float OldHealth);
@@ -25,11 +27,11 @@ class UPlayerAttributes : UAngelscriptAttributeSet
 	UPROPERTY(BlueprintReadOnly, Category = "Hero Attributes")
 	FAngelscriptGameplayAttributeData MaxShield;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Events")
-	FOnHealthChanged HealthAttributeChanged;
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_MoveSpeed, Category = "Hero Attributes")
+	FAngelscriptGameplayAttributeData MoveSpeed;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Events")
-	FOnShieldChanged ShieldAttributeChanged;
+	UPROPERTY(BlueprintReadOnly, Category = "Hero Attributes")
+	FAngelscriptGameplayAttributeData MaxMoveSpeed;
 
 	UPlayerAttributes()
 	{
@@ -37,6 +39,8 @@ class UPlayerAttributes : UAngelscriptAttributeSet
 		MaxHealth.Initialize(100.0f);
 		Shield.Initialize(100.0f);
 		MaxShield.Initialize(100.0f);
+		MoveSpeed.Initialize(600.0f);
+		MaxMoveSpeed.Initialize(600.0f);
 	}
 
 	// #region On_Rep
@@ -48,6 +52,12 @@ class UPlayerAttributes : UAngelscriptAttributeSet
 
 	UFUNCTION(NotBlueprintCallable)
 	void OnRep_Shield(FAngelscriptGameplayAttributeData& OldAttributeData)
+	{
+		OnRep_Attribute(OldAttributeData);
+	}
+
+	UFUNCTION(NotBlueprintCallable)
+	void OnRep_MoveSpeed(FAngelscriptGameplayAttributeData& OldAttributeData)
 	{
 		OnRep_Attribute(OldAttributeData);
 	}
@@ -77,12 +87,10 @@ class UPlayerAttributes : UAngelscriptAttributeSet
 		if (Attribute.AttributeName == UPlayerAttributes::HealthName)
 		{
 			//Health.SetBaseValue(Math::Clamp(NewValue, 0.0f, MaxHealth.BaseValue));
-			HealthAttributeChanged.Broadcast(NewValue, OldValue);
 		}
 		else if (Attribute.AttributeName == UPlayerAttributes::ShieldName)
 		{
 			//Shield.SetBaseValue(Math::Clamp(NewValue, 0.0f, MaxShield.BaseValue));
-			ShieldAttributeChanged.Broadcast(NewValue, OldValue);
 		}
 	}
 

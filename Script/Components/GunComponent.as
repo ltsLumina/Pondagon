@@ -20,7 +20,7 @@ struct FBulletHit
 	AController Instigator;
 
 	UPROPERTY(BlueprintReadOnly)
-	AEnemyBase HitEnemy;
+	AScriptEnemyBase HitEnemy;
 
 	UPROPERTY(BlueprintReadOnly)
 	float Damage;
@@ -37,7 +37,7 @@ struct FBulletHit
 	UPROPERTY(BlueprintReadOnly)
 	FHitResult Hit;
 
-	FBulletHit(AController InInstigator, AEnemyBase InHitEnemy, float InDamage, bool InIsShieldBreak, bool InIsPrecisionKill, bool InIsKill, FHitResult InHitResult)
+	FBulletHit(AController InInstigator, AScriptEnemyBase InHitEnemy, float InDamage, bool InIsShieldBreak, bool InIsPrecisionKill, bool InIsKill, FHitResult InHitResult)
 	{
 		Instigator = InInstigator;
 		HitEnemy = InHitEnemy;
@@ -107,10 +107,7 @@ class UGunComponent : UActorComponent
 	bool IsScoped;
 
 	UPROPERTY(Category = "Hero | GAS", EditConst)
-	UGenericGunAttributes GenericGunAttributes;
-
-	UPROPERTY(Category = "Hero | GAS", EditConst)
-	UAngelscriptAttributeSet SpecificGunAttributes;
+	const UGenericGunAttributes GenericGunAttributes;
 
 	UFUNCTION(Category = "Gun | Ammo", BlueprintPure)
 	int GetCurrentAmmo() property
@@ -187,24 +184,30 @@ class UGunComponent : UActorComponent
 	UFUNCTION(Category = "Gun | Shooting", BlueprintPure)
 	bool GetIsFirstShotAccurate()
 	{
-		return TimeSinceLastShot > 1.0 && RecoilIndex == 0;
+		return TimeSinceLastShot > 1.0 && BulletIndex == 0;
 	}
 
 	/**
 	 * The current index in the recoil pattern. This increments with each shot fired.
 	 * It is used to determine the recoil offset applied to the gun.
 	 */
-	UPROPERTY(Category = "Gun | Recoil", VisibleInstanceOnly, BlueprintReadOnly)
-	int RecoilIndex;
+	UPROPERTY(Category = "Gun | Recoil", VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = "OnRep_BulletIndex")
+	int BulletIndex;
+
+	UFUNCTION()
+	void OnRep_BulletIndex(int Old)
+	{
+		Print(f"{BulletIndex=}");
+	}
 
 	UFUNCTION(BlueprintPure, Category = "Gun | Accuracy")
-	bool IsBulletProtected()
+	bool IsBulletProtected(EPondMovementState MovementState)
 	{
-		return RecoilIndex <= WeaponDefinition.ProtectedBullets;
+		return BulletIndex < WeaponDefinition.ProtectedBullets && MovementState == EPondMovementState::Still && CanFireProtectedBullet;
 	}
 
 	UPROPERTY(Category = "Gun | Accuracy", VisibleInstanceOnly)
-	FBulletSpreadData SpreadData;
+	FBulletSpreadData AccuracyCone;
 
 	// - alt fire
 
@@ -245,24 +248,17 @@ class UGunComponent : UActorComponent
 	void Initialize()
 	{
 		OwningHero = Cast<APondHero>(GetOwner());
+		ComponentTickEnabled = true; // need to defer tick until owning hero is init'd.
 
-		auto PS = Cast<AScriptPondPlayerState>(OwningHero.PlayerState);
-		//SpecificGunAttributes = OwningHero.AbilitySystem.GetAttributeSet(USixShooterAttributes);
+		GenericGunAttributes = OwningHero.AbilitySystem.GetAttributeSet(UGenericGunAttributes);
 
-		//GenericGunAttributes.Ammo.Initialize(WeaponDefinition.Stats.Core.Magazine);
-		//GenericGunAttributes.MaxAmmo.Initialize(WeaponDefinition.Stats.Core.Magazine);
-
-		ShootCooldown = 1.0 / WeaponDefinition.Stats.GetFireRate();
-		RPM = WeaponDefinition.Stats.GetFireRate() * 60;
-
-		UAbilitySystemComponent ASC = AbilitySystem::GetAngelscriptAbilitySystemComponent(OwningHero.PlayerState);
 		if (GetOwner().HasAuthority())
-			GrantAbilities(ASC);
+			GrantAbilities(OwningHero.AbilitySystem);
 
 		Ready();
 	}
 
-	UFUNCTION(Server)
+	UFUNCTION(BlueprintAuthorityOnly)
 	void GrantAbilities(UAbilitySystemComponent ASC)
 	{
 		ASC.GiveAbility(WeaponDefinition.FireGameplayAbility, 0, -1);
@@ -274,14 +270,19 @@ class UGunComponent : UActorComponent
 		}
 	}
 
+	bool CanFireProtectedBullet = true;
+	default ComponentTickEnabled = false;
+
 	UFUNCTION(BlueprintOverride)
 	void Tick(float DeltaSeconds)
 	{
 		TimeSinceLastShot += DeltaSeconds;
 
 		// Assumes player has not fired for a while, reset recoil index
-		if (TimeSinceLastShot > 0.4)
-			RecoilIndex = 0;
+		BulletIndex = TimeSinceLastShot > 0.4f ? 0 : BulletIndex;
+
+		if (IsValid(OwningHero))
+			CanFireProtectedBullet = OwningHero.TimeSinceMoving > 0.85f;
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Gun | Accuracy", Meta = (AdvancedDisplay = "ConeWidth,ConeHeight,ErrorAngle,IsAccurate"))
@@ -302,29 +303,30 @@ class UGunComponent : UActorComponent
 		FVector Right = FVector::UpVector.CrossProduct(AimDirection).GetSafeNormal();
 		FVector Up = AimDirection.CrossProduct(Right).GetSafeNormal();
 
-		if (IsBulletProtected() && OwningHero.ResolveMovementState() == EPondMovementState::Still)
+		if (IsBulletProtected(OwningHero.ResolveMovementState()))
 		{
-			FVector FinalDirSansSpread = (AimDirection).GetSafeNormal();
-			return FinalDirSansSpread;
+			FVector SpreadDirSansSpread = (AimDirection).GetSafeNormal();
+			return SpreadDirSansSpread;
 		}
 
 		// Apply spread offset
-		FVector FinalDir = (AimDirection + Right * OffsetX + Up * OffsetY).GetSafeNormal();
+		FVector SpreadDir = (AimDirection + Right * OffsetX + Up * OffsetY).GetSafeNormal();
 
 		OutSpreadData.ConeWidth = Math::Atan2(Math::Abs(OffsetX), 1.0f);
 		OutSpreadData.ConeHeight = Math::Atan2(Math::Abs(OffsetY), 1.0f);
-		OutSpreadData.ErrorAngle = Math::RadiansToDegrees(Math::Acos(FinalDir.DotProduct(AimDirection)));
-		OutSpreadData.IsAccurate = SpreadData.ErrorAngle <= 0.01f;
+		OutSpreadData.ErrorAngle = Math::RadiansToDegrees(Math::Acos(SpreadDir.DotProduct(AimDirection)));
+		OutSpreadData.IsAccurate = AccuracyCone.ErrorAngle <= 0.01f;
 
-		return FinalDir;
+		return SpreadDir;
 	}
 
 	FVector TraceStart;
 	FVector TraceEnd;
 
 	// for debug only.
-	EDrawDebugTrace DebugTrace = EDrawDebugTrace::None;
-	float DebugTraceDuration = 1.0f;
+	EDrawDebugTrace DebugTrace = EDrawDebugTrace::Persistent;
+	float DebugTraceDuration = 61.5f;
+	bool DrawCones = true;
 
 	FVector GetTargetPoint(float MaxDistance = 10000.0f)
 	{
@@ -344,48 +346,228 @@ class UGunComponent : UActorComponent
 								ETraceTypeQuery::TraceTypeQuery3,
 								false,
 								TArray<AActor>(),
-								DebugTrace,
+								EDrawDebugTrace::None,
 								Hit,
 								true,
 								FLinearColor::Red,
 								FLinearColor::Green,
 								DebugTraceDuration);
 
-		Client_DrawDebugTargetPointTrace(TraceStart, TraceEnd, DebugTraceDuration);
+		Cosmetic_DrawDebugTargetPointTrace(TraceStart, TraceEnd, DebugTraceDuration);
 
 		FVector TargetPoint = Hit.bBlockingHit ? Hit.Location : TraceEnd;
 		return TargetPoint;
 	}
 
+	UFUNCTION(BlueprintPure, Category = "Gun | Accuracy")
+	float GetSpread(EPondMovementState MovementState)
+	{
+		float Spread = 0;
+
+		bool IsCrouched = MovementState == EPondMovementState::Crouch || MovementState == EPondMovementState::CrouchWalk;
+		float MaxSpread = IsCrouched ? WeaponDefinition.CrouchMaxSpread : WeaponDefinition.StandingMaxSpread;
+
+		float Time = (1 + BulletIndex) / float(WeaponDefinition.MaxSpreadBullet);
+		float Value = WeaponDefinition.SpreadCurve.GetFloatValue(Time);
+
+		Spread += Math::Clamp(Value, 0, MaxSpread);
+
+		float Penalty = 0;
+
+		switch (MovementState)
+		{
+			case EPondMovementState::Airborne:
+				Penalty = WeaponDefinition.AirbornePenalty;
+				break;
+			case EPondMovementState::Run:
+				Penalty = WeaponDefinition.RunPenalty;
+				break;
+			case EPondMovementState::Walk:
+				Penalty = WeaponDefinition.WalkPenalty;
+				break;
+			case EPondMovementState::CrouchWalk:
+				Penalty = WeaponDefinition.CrouchPenalty;
+				break;
+
+			default:
+				break;
+		}
+
+		Spread += Penalty;
+
+		bool IsProtected = IsBulletProtected(MovementState);
+		Spread = IsProtected ? WeaponDefinition.StandingSpread : Spread;
+		FString ProtectedSuffix = IsProtected ? "(Protected)" : "";
+		Print(f"{Spread=}° degrees {ProtectedSuffix}", 1, FLinearColor(0.5, 0.5, 1.0));
+		return Spread;
+	}
+
 	TArray<FHitResult> Hits;
 	bool BlockingHit;
-	TArray<EEnchantExecuteTrigger> SuccessfulConditions;
+	FGameplayEventData Payload;
 
-	TArray<FHitResult> Trace(float MaxDistance = 10000.0f, FBulletHit&out OutBulletHit = FBulletHit(), FGameplayEventData&out Payload = FGameplayEventData())
+	FTimerHandle Handle;
+
+	/**
+	 * Fires four traces, which each serve a separate purpose toward calculating where a bullet will hit.
+	 * Each trace returns a point in space that is used to calculate the end result.
+	 * - `TargetPoint`: The vector point hit from the player's eyes to the center of the player's view across `MaxDistance`units.
+	 * - `SpreadPoint`: Vector point at which the bullet would hit when accounting for added spread from `BulletIndex` (recoil), `MovementError` (penalty) and crouch/standing coefficient.
+	 * - `MagnetizedPoint` Vector point that the `BulletMagnetism` stat 'pulled' the `SpreadPoint` toward, based on the `ErrorAngle` of the `SpreadPoint`.
+	 * - `FinalPoint`: The final point in space that the bullet will hit, accounting for `TargetPoint`, `SpreadPoint`, and `MagnetizedPoint` (if a target was hit by the magnetism capsule trace).
+	 */
+	void Fire()
 	{
-		FVector AimDirection = (GetTargetPoint(MaxDistance) - TraceStart).GetSafeNormal();
+		FVector TargetPoint = GetTargetPoint(10000.0f);
 
-		FVector BulletDirection = ApplySpread(AimDirection, CurrentGun.GetSpread(OwningHero.ResolveMovementState()), SpreadData);
+		float ConeExtents;
+		FVector SpreadPoint = GetSpreadPoint(TargetPoint, ConeExtents);
 
-		FVector End = TraceStart + BulletDirection * MaxDistance;
+		FHitResult Hit;
+		AActor TargetActor = SweepForTarget(Hit);
+		FVector MagnetizedPoint = GetMagnetizedPoint(TargetActor, Hit, SpreadPoint);
 
+		FVector ImpactPoint = TraceStart + (IsValid(TargetActor) ? MagnetizedPoint : SpreadPoint) * 10000.0f;
+		TraceFinalHit(ImpactPoint);
+	}
+
+	AActor SweepForTarget(FHitResult&out Hit)
+	{
+		TArray<EObjectTypeQuery> ObjTypes;
+		ObjTypes.Add(EObjectTypeQuery::Pawn);
+
+		TArray<AActor> IgnoreActors;
+		IgnoreActors.Add(GetOwner());
+
+		float AssistRange = 2500.0f;
+		float ConeHalfAngleDeg = GenericGunAttributes.AimAssist.CurrentValue;
+		float ConeHalfAngleRad = Math::DegreesToRadians(ConeHalfAngleDeg);
+
+		float Radius = Math::Tan(ConeHalfAngleRad) * AssistRange;
+
+		System::CapsuleTraceSingleForObjects(TraceStart,
+											 TraceEnd,
+											 Radius,
+											 Radius,
+											 ObjTypes,
+											 false,
+											 IgnoreActors,
+											 DebugTrace,
+											 Hit,
+											 true,
+											 FLinearColor::DPink,
+											 FLinearColor::Red,
+											 DebugTraceDuration);
+
+		if (Hit.Actor != nullptr)
+			Print(f"Magnetism Target: {Hit.Actor.ActorNameOrLabel}", 0.5f);
+
+		return Hit.Actor;
+	}
+
+	FVector GetSpreadPoint(FVector&in TargetPoint, float&out SpreadDeg)
+	{
+		FVector AimDirection = (TargetPoint - TraceStart).GetSafeNormal();
+
+		SpreadDeg = GetSpread(OwningHero.ResolveMovementState());
+
+		FVector BulletDirection = ApplySpread(AimDirection, SpreadDeg, AccuracyCone);
+		Cosmetic_DrawAccuracyCone(AimDirection, SpreadDeg);
+
+		FVector SpreadEnd = TraceStart + BulletDirection * 10000.0f;
+		Cosmetic_DrawDebugSpreadPointTrace(TraceStart, SpreadEnd, DebugTraceDuration);
+
+		return BulletDirection;
+	}
+
+	FVector GetAimDirection(FVector&in TargetPoint)
+	{
+		return (TargetPoint - TraceStart).GetSafeNormal();
+	}
+
+	FVector GetMagnetizedPoint(AActor&in MagnetismTarget, FHitResult&in Hit, FVector&in BulletDirection)
+	{
+		FVector PulledDir;
+		if (IsValid(MagnetismTarget))
+		{
+			float MaxPullDeg = GenericGunAttributes.AimAssist.CurrentValue;
+
+			FVector DesiredDir = (Hit.ImpactPoint - TraceStart).GetSafeNormal();
+
+			FBulletSpreadData AimAssistCone;
+			AimAssistCone.ConeWidth = Math::RadiansToDegrees(Math::Atan2(Math::Abs(DesiredDir.Y), 1.0f));
+			AimAssistCone.ConeHeight = Math::RadiansToDegrees(Math::Atan2(Math::Abs(DesiredDir.Z), 1.0f));
+			AimAssistCone.ErrorAngle = Math::RadiansToDegrees(Math::Acos(Math::Clamp(DesiredDir.DotProduct(BulletDirection), -1.0f, 1.0f)));
+
+			PulledDir = BulletDirection;
+			if (AimAssistCone.ErrorAngle > KINDA_SMALL_NUMBER)
+			{
+				// Move only a fraction so we rotate by at most MaxPullDeg
+				float Alpha = Math::Min(1.0f, MaxPullDeg / AimAssistCone.ErrorAngle);
+				PulledDir = (BulletDirection + (DesiredDir - BulletDirection) * Alpha).GetSafeNormal();
+			}
+			float PullAngleDeg = Math::RadiansToDegrees(Math::Acos(Math::Clamp(BulletDirection.DotProduct(PulledDir), -1.0f, 1.0f)));
+			Cosmetic_DrawAimAssistCone(PulledDir, PullAngleDeg);
+		}
+
+		return PulledDir;
+	}
+
+	void Cosmetic_DrawAccuracyCone(FVector Direction, float AngleInDegrees)
+	{
+		if (!DrawCones) return;
+		
+		if (!GetOwner().HasAuthority())
+			return;
+
+		if (DebugTrace != EDrawDebugTrace::None)
+			System::DrawDebugConeInDegrees(TraceStart,
+										   Direction,
+										   10000.0f,
+										   AngleInDegrees,
+										   AngleInDegrees,
+										   12,
+										   FLinearColor::Blue,
+										   DebugTraceDuration);
+	}
+
+	void Cosmetic_DrawAimAssistCone(FVector Direction, float AngleInDegrees)
+	{
+		if (!DrawCones) return;
+
+		if (!GetOwner().HasAuthority())
+			return;
+
+		if (DebugTrace != EDrawDebugTrace::None)
+			System::DrawDebugConeInDegrees(TraceStart,
+										   Direction,
+										   10000.0f,
+										   AngleInDegrees,
+										   AngleInDegrees,
+										   16,
+										   FLinearColor::Purple,
+										   DebugTraceDuration);
+	}
+
+	private void TraceFinalHit(FVector&in FinalDir)
+	{
 		TArray<AActor> ActorsToIgnore;
 		ActorsToIgnore.Add(GetOwner()); // guncomponent is attached to character
 
 		// Perform spread trace (the point the bullet will hit)
 		BlockingHit = System::LineTraceMulti(TraceStart,
-											 End,
+											 FinalDir,
 											 ETraceTypeQuery::TraceTypeQuery3,
 											 false,
 											 ActorsToIgnore,
-											 DebugTrace,
+											 EDrawDebugTrace::None,
 											 Hits,
 											 true, // doesn't ignore the owning actor!! (ignores this component)
 											 FLinearColor::Yellow,
 											 FLinearColor::Green,
 											 DebugTraceDuration);
 
-		Client_DrawDebugSpreadPointTrace(End, DebugTraceDuration);
+		Cosmetic_DrawDebugFinalPointTrace(TraceStart, FinalDir, DebugTraceDuration);
 
 		if (!BlockingHit)
 		{
@@ -393,18 +575,15 @@ class UGunComponent : UActorComponent
 			ShootSFX();
 
 			BulletHit = FBulletHit();
-			return TArray<FHitResult>();
+			return;
 		}
 
 		FHitResult LastHit = Hits.Last();
 
 		auto Instigator = OwningHero.Controller;
-		auto HitEnemy = Cast<AEnemyBase>(LastHit.Actor);
+		auto HitEnemy = Cast<AScriptEnemyBase>(LastHit.Actor);
 		bool WasEnemyHit = IsValid(HitEnemy);
 		float Damage = WeaponDefinition.GetDamage();
-
-		if (WasEnemyHit && !HitEnemy.Attributes.OnEnemyHit.IsBound())
-			HitEnemy.Attributes.OnEnemyHit.AddUFunction(this, n"OnEnemyHit");
 
 		BulletHit = FBulletHit();
 		BulletHit.Instigator = Instigator;
@@ -426,7 +605,6 @@ class UGunComponent : UActorComponent
 
 		auto ASC = AbilitySystem::GetAngelscriptAbilitySystemComponent(OwningHero.PlayerState);
 		ASC.SendGameplayEvent(GameplayTags::Enchantment_Trigger_OnShot, Payload);
-		//AbilitySystem::SendGameplayEventToActor(ASC.Owner, GameplayTags::Enchantment_Trigger_OnShot, Payload)
 
 		ShootSFX();
 		HitSFX();
@@ -441,20 +619,19 @@ class UGunComponent : UActorComponent
 			Gameplay::ApplyPointDamage(
 				BulletHit.HitEnemy,
 				DamageAmount,
-				BulletDirection,
+				FinalDir,
 				LastHit,
 				OwningHero.Controller,
 				OwningHero,
 				TSubclassOf<UDamageType>(UDamageType));
 		}
-
-		OutBulletHit = BulletHit;
-		return Hits;
 	}
 
-	UFUNCTION(Client, Unreliable)
-	void Client_DrawDebugTargetPointTrace(FVector InStart, FVector InEnd, float InDuration = 1.0f)
+	private void Cosmetic_DrawDebugTargetPointTrace(FVector InStart, FVector InEnd, float InDuration = 1.0f)
 	{
+		if (!GetOwner().HasAuthority())
+			return;
+
 		FHitResult DummyHit;
 		System::LineTraceSingle(
 			InStart,
@@ -462,7 +639,7 @@ class UGunComponent : UActorComponent
 			ETraceTypeQuery::TraceTypeQuery3,
 			false,
 			TArray<AActor>(),
-			EDrawDebugTrace::ForDuration,
+			DebugTrace,
 			DummyHit,
 			true,
 			FLinearColor::Red,
@@ -470,25 +647,19 @@ class UGunComponent : UActorComponent
 			InDuration);
 	}
 
-	UFUNCTION(Client, Unreliable)
-	void Client_DrawDebugSpreadPointTrace(FVector SpreadEnd, float InDuration = 1.0f)
+	private void Cosmetic_DrawDebugSpreadPointTrace(FVector InStart, FVector InEnd, float InDuration = 1.0f)
 	{
-		FVector Location;
-		FRotator Rotation;
-		OwningHero.Controller.GetPlayerViewPoint(Location, Rotation);
-		FVector CameraLocation = Location;
-		FVector CameraForward = Rotation.ForwardVector;
-
-		FVector DebugTraceStart = CameraLocation;
+		if (!GetOwner().HasAuthority())
+			return;
 
 		FHitResult DummyHit;
 		System::LineTraceSingle(
-			DebugTraceStart,
-			SpreadEnd,
+			InStart,
+			InEnd,
 			ETraceTypeQuery::TraceTypeQuery3,
 			false,
 			TArray<AActor>(),
-			EDrawDebugTrace::ForDuration,
+			DebugTrace,
 			DummyHit,
 			true,
 			FLinearColor::Yellow,
@@ -496,32 +667,29 @@ class UGunComponent : UActorComponent
 			InDuration);
 	}
 
-	UFUNCTION(NotBlueprintCallable)
-	private void OnEnemyHit(float DamageDealt, bool WasPrecision, bool Died)
+	private void Cosmetic_DrawDebugFinalPointTrace(FVector InStart, FVector InEnd, float InDuration = 1.0f)
 	{
-		if (Died && BulletHit.HitEnemy != nullptr)
-			BulletHit.HitEnemy.Attributes.OnEnemyHit.Clear();
+		if (!GetOwner().HasAuthority())
+			return;
 
-		if (DamageDealt > 0)
-			SuccessfulConditions.Add(EEnchantExecuteTrigger::OnHit);
-		if (Died)
-			SuccessfulConditions.Add(EEnchantExecuteTrigger::OnKill);
-		if (WasPrecision)
-			SuccessfulConditions.Add(EEnchantExecuteTrigger::OnPrecisionHit);
-		if (WasPrecision && Died)
-			SuccessfulConditions.Add(EEnchantExecuteTrigger::OnPrecisionKill);
-
-		bool bShouldLog = true;
-		for (auto& Result : SuccessfulConditions)
-		{
-			if (IsValid(BulletHit.HitEnemy))
-				LogIf(bShouldLog, n"Enchantments", f"Hit (\"{BulletHit.HitEnemy.ActorNameOrLabel}\") with condition \"{Result:n}\"");
-		}
+		FHitResult DummyHit;
+		System::LineTraceSingle(
+			InStart,
+			InEnd,
+			ETraceTypeQuery::TraceTypeQuery3,
+			false,
+			TArray<AActor>(),
+			DebugTrace,
+			DummyHit,
+			true,
+			FLinearColor::LucBlue,
+			FLinearColor::Green,
+			InDuration);
 	}
 
 	void InvokeEnchantment(TSubclassOf<UEnchantment> EnchantClass)
 	{
-		auto ASC = AbilitySystem::GetAbilitySystemComponent(OwningHero.PlayerState);	
+		auto ASC = AbilitySystem::GetAbilitySystemComponent(OwningHero.PlayerState);
 		auto Spec = FGameplayAbilitySpec(EnchantClass, 1, -1, nullptr);
 		ASC.GiveAbilityAndActivateOnceWithEventData(Spec, FGameplayEventData());
 		Log(f"Activating {EnchantClass.DefaultObject.DisplayName}");
@@ -601,10 +769,16 @@ class UGunComponent : UActorComponent
 
 	/**
 	 * Generic shoot function.
+	 * TODO: May want to make this only fire on authority to prevent BulletIndex from being manipulated by the client.
 	 */
 	UFUNCTION()
-	bool Shoot(FBulletHit&out Hit, FGameplayEventData&out Payload)
+	bool Shoot()
 	{
+		float FireRateAttribute = GenericGunAttributes.FireRate.CurrentValue;
+
+		ShootCooldown = 1.0 / FireRateAttribute;
+		RPM = FireRateAttribute * 60;
+
 		switch (WeaponDefinition.FireMode)
 		{
 			case EFireMode::Semi:
@@ -630,9 +804,9 @@ class UGunComponent : UActorComponent
 
 		if (GetIsReady())
 		{
-			Hits = Trace(10000.0f, Hit, Payload);
+			Fire();
 
-			RecoilIndex++;
+			BulletIndex++;
 
 			if (CurrentAmmo <= 0)
 			{

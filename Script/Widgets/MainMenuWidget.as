@@ -12,6 +12,10 @@ class UMainMenuWidget : UPondWidgetBase
         return AdvancedSessions::HasOnlineSubsystem(n"STEAM");
     }
 
+    /**
+     * Overriden in BP due to lack of AdvancedSessionsSteam support in AS.
+     * Do not override this in AS!
+     */
     UFUNCTION(BlueprintEvent)
     void InitSteam(APlayerController Controller)
     {}
