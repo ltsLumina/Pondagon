@@ -1,3 +1,12 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+* linguist-detectable=false
+*.as linguist-detectable=true
+*.as linguist-language=AngelScript
+*.cpp linguist-detectable=true
+*.cpp linguist-language=C++
+
 [attr]lock filter=lfs diff=lfs merge=binary -text lockable
 [attr]lockonly lockable
 [attr]lfs filter=lfs diff=lfs merge=binary -text
