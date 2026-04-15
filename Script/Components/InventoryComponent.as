@@ -18,7 +18,12 @@ class UInventoryComponent : UActorComponent
 		check(GunComponent.DefaultGun != nullptr, "Default Gun is nullptr! Assign it in the Hero's GunComponent.");
 		
 		AddWeapon(GunComponent.DefaultGun);
+
+		OnInitialize();
 	}
+
+	UFUNCTION(BlueprintEvent)
+	void OnInitialize() {}
 
 	UFUNCTION()
 	UItemInstance AddItem(UItemDefinition ItemDef, int Amount = 1)

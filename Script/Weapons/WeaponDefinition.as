@@ -103,7 +103,7 @@ class UWeaponDefinition : UPrimaryDataAsset
 	 * @note MUST UPDATE AMMO!
 	 */
 	UPROPERTY(Category = "Gun | GAS", EditDefaultsOnly, BlueprintReadOnly)
-	TSubclassOf<UGameplayAbility> FireGameplayAbility;
+	TSubclassOf<UGameplayAbility> ShootGameplayAbility;
 
 	UPROPERTY(Category = "Gun | GAS", EditDefaultsOnly, BlueprintReadOnly)
 	TSubclassOf<UGameplayAbility> ReloadGameplayAbility;

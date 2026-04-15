@@ -101,7 +101,7 @@ class UGunComponent : UActorComponent
 	}
 
 	UPROPERTY(NotVisible, BlueprintReadOnly)
-	APondHero OwningHero;
+	AScriptPondHero OwningHero;
 
 	UPROPERTY(Category = "Gun | Scope", VisibleInstanceOnly)
 	bool IsScoped;
@@ -147,16 +147,6 @@ class UGunComponent : UActorComponent
 
 	// - shooting helpers
 
-	// Whether the gun is ready to fire. This is set to true when the gun is ready to shoot, and false when it has no ammo or is jammed.
-	UPROPERTY(Category = "Gun | Shooting", VisibleInstanceOnly, BlueprintReadOnly, BlueprintGetter = "GetIsReady")
-	protected bool IsReady;
-
-	UFUNCTION(Category = "Gun | Shooting", BlueprintPure)
-	bool GetIsReady()
-	{
-		return WeaponDefinition.ReloadStrategy.GunState == EGunState::Ready;
-	}
-
 	UPROPERTY(Category = "Gun | Shooting", VisibleInstanceOnly, BlueprintReadOnly, BlueprintGetter = "GetIsFiring")
 	protected bool IsFiring;
 
@@ -191,14 +181,8 @@ class UGunComponent : UActorComponent
 	 * The current index in the recoil pattern. This increments with each shot fired.
 	 * It is used to determine the recoil offset applied to the gun.
 	 */
-	UPROPERTY(Category = "Gun | Recoil", VisibleInstanceOnly, BlueprintReadOnly, ReplicatedUsing = "OnRep_BulletIndex")
+	UPROPERTY(Category = "Gun | Recoil", VisibleInstanceOnly, BlueprintReadOnly, Replicated)
 	int BulletIndex;
-
-	UFUNCTION()
-	void OnRep_BulletIndex(int Old)
-	{
-		Print(f"{BulletIndex=}");
-	}
 
 	UFUNCTION(BlueprintPure, Category = "Gun | Accuracy")
 	bool IsBulletProtected(EPondMovementState MovementState)
@@ -247,7 +231,7 @@ class UGunComponent : UActorComponent
 
 	void Initialize()
 	{
-		OwningHero = Cast<APondHero>(GetOwner());
+		OwningHero = Cast<AScriptPondHero>(GetOwner());
 		ComponentTickEnabled = true; // need to defer tick until owning hero is init'd.
 
 		GenericGunAttributes = OwningHero.AbilitySystem.GetAttributeSet(UGenericGunAttributes);
@@ -255,13 +239,16 @@ class UGunComponent : UActorComponent
 		if (GetOwner().HasAuthority())
 			GrantAbilities(OwningHero.AbilitySystem);
 
-		Ready();
+		OnInitialize();
 	}
+
+	UFUNCTION(BlueprintEvent)
+	void OnInitialize() {}
 
 	UFUNCTION(BlueprintAuthorityOnly)
 	void GrantAbilities(UAbilitySystemComponent ASC)
 	{
-		ASC.GiveAbility(WeaponDefinition.FireGameplayAbility, 0, -1);
+		ASC.GiveAbility(WeaponDefinition.ShootGameplayAbility, 0, -1);
 		ASC.GiveAbility(WeaponDefinition.ReloadGameplayAbility, 0, -1);
 
 		for (auto& Enchant : CurrentGun.Enchantments)
@@ -277,12 +264,6 @@ class UGunComponent : UActorComponent
 	void Tick(float DeltaSeconds)
 	{
 		TimeSinceLastShot += DeltaSeconds;
-
-		// Assumes player has not fired for a while, reset recoil index
-		BulletIndex = TimeSinceLastShot > 0.4f ? 0 : BulletIndex;
-
-		if (IsValid(OwningHero))
-			CanFireProtectedBullet = OwningHero.TimeSinceMoving > 0.85f;
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Gun | Accuracy", Meta = (AdvancedDisplay = "ConeWidth,ConeHeight,ErrorAngle,IsAccurate"))
@@ -325,7 +306,7 @@ class UGunComponent : UActorComponent
 
 	// for debug only.
 	EDrawDebugTrace DebugTrace = EDrawDebugTrace::Persistent;
-	float DebugTraceDuration = 61.5f;
+	float DebugTraceDuration = 5.0f;
 	bool DrawCones = true;
 
 	FVector GetTargetPoint(float MaxDistance = 10000.0f)
@@ -429,6 +410,11 @@ class UGunComponent : UActorComponent
 
 		FVector ImpactPoint = TraceStart + (IsValid(TargetActor) ? MagnetizedPoint : SpreadPoint) * 10000.0f;
 		TraceFinalHit(ImpactPoint);
+
+		if (GetOwner().HasAuthority())
+			BulletIndex++;
+
+		TimeSinceLastShot = 0;
 	}
 
 	AActor SweepForTarget(FHitResult&out Hit)
@@ -445,6 +431,10 @@ class UGunComponent : UActorComponent
 
 		float Radius = Math::Tan(ConeHalfAngleRad) * AssistRange;
 
+#if EDITOR
+		DebugTrace = (GetOwner().AsPawn().IsLocallyControlled()) ? DebugTrace : EDrawDebugTrace::None;
+#endif
+
 		System::CapsuleTraceSingleForObjects(TraceStart,
 											 TraceEnd,
 											 Radius,
@@ -458,9 +448,6 @@ class UGunComponent : UActorComponent
 											 FLinearColor::DPink,
 											 FLinearColor::Red,
 											 DebugTraceDuration);
-
-		if (Hit.Actor != nullptr)
-			Print(f"Magnetism Target: {Hit.Actor.ActorNameOrLabel}", 0.5f);
 
 		return Hit.Actor;
 	}
@@ -515,9 +502,10 @@ class UGunComponent : UActorComponent
 
 	void Cosmetic_DrawAccuracyCone(FVector Direction, float AngleInDegrees)
 	{
-		if (!DrawCones) return;
-		
-		if (!GetOwner().HasAuthority())
+		if (!DrawCones)
+			return;
+
+		if (!(GetOwner().AsPawn()).IsLocallyControlled())
 			return;
 
 		if (DebugTrace != EDrawDebugTrace::None)
@@ -533,9 +521,10 @@ class UGunComponent : UActorComponent
 
 	void Cosmetic_DrawAimAssistCone(FVector Direction, float AngleInDegrees)
 	{
-		if (!DrawCones) return;
+		if (!DrawCones)
+			return;
 
-		if (!GetOwner().HasAuthority())
+		if (!(GetOwner().AsPawn()).IsLocallyControlled())
 			return;
 
 		if (DebugTrace != EDrawDebugTrace::None)
@@ -594,8 +583,8 @@ class UGunComponent : UActorComponent
 		BulletHit.HitEnemy = HitEnemy;
 		if (WasEnemyHit)
 		{
-			BulletHit.IsShieldBreak = (HitEnemy.CurrentShield - Damage) <= 0;
-			BulletHit.IsKill = (HitEnemy.CurrentHealth - Damage <= 0);
+			BulletHit.IsShieldBreak = (HitEnemy.Shield - Damage) <= 0;
+			BulletHit.IsKill = (HitEnemy.Health - Damage <= 0);
 		}
 
 		Payload.Instigator = OwningHero.Controller;
@@ -629,7 +618,7 @@ class UGunComponent : UActorComponent
 
 	private void Cosmetic_DrawDebugTargetPointTrace(FVector InStart, FVector InEnd, float InDuration = 1.0f)
 	{
-		if (!GetOwner().HasAuthority())
+		if (!(GetOwner().AsPawn()).IsLocallyControlled())
 			return;
 
 		FHitResult DummyHit;
@@ -649,7 +638,7 @@ class UGunComponent : UActorComponent
 
 	private void Cosmetic_DrawDebugSpreadPointTrace(FVector InStart, FVector InEnd, float InDuration = 1.0f)
 	{
-		if (!GetOwner().HasAuthority())
+		if (!(GetOwner().AsPawn()).IsLocallyControlled())
 			return;
 
 		FHitResult DummyHit;
@@ -669,7 +658,7 @@ class UGunComponent : UActorComponent
 
 	private void Cosmetic_DrawDebugFinalPointTrace(FVector InStart, FVector InEnd, float InDuration = 1.0f)
 	{
-		if (!GetOwner().HasAuthority())
+		if (!(GetOwner().AsPawn()).IsLocallyControlled())
 			return;
 
 		FHitResult DummyHit;
@@ -731,7 +720,7 @@ class UGunComponent : UActorComponent
 	{
 		for (FHitResult Hit : Hits)
 		{
-			if (Hit.Actor.IsA(AScriptPondCharacter) || Hit.Actor.IsA(APondHero))
+			if (Hit.Actor.IsA(AScriptPondCharacter) || Hit.Actor.IsA(AScriptPondHero))
 				continue;
 
 			int i = Hits.FindIndex(Hit);
@@ -764,7 +753,7 @@ class UGunComponent : UActorComponent
 		this.TriggeredTime = InTriggeredTime;
 
 		auto ASC = AbilitySystem::GetAngelscriptAbilitySystemComponent(OwningHero.PlayerState);
-		ASC.TryActivateAbilityByClass(WeaponDefinition.FireGameplayAbility);
+		ASC.TryActivateAbilityByClass(WeaponDefinition.ShootGameplayAbility);
 	}
 
 	/**
@@ -778,6 +767,11 @@ class UGunComponent : UActorComponent
 
 		ShootCooldown = 1.0 / FireRateAttribute;
 		RPM = FireRateAttribute * 60;
+
+		// Assumes player has not fired for a while, reset bullet index
+		BulletIndex = TimeSinceLastShot > 0.4f ? 0 : BulletIndex;
+
+		CanFireProtectedBullet = OwningHero.TimeSinceMoving > 1.25f;
 
 		switch (WeaponDefinition.FireMode)
 		{
@@ -802,22 +796,9 @@ class UGunComponent : UActorComponent
 			return false;
 		}
 
-		if (GetIsReady())
-		{
-			Fire();
+		Fire();
 
-			BulletIndex++;
-
-			if (CurrentAmmo <= 0)
-			{
-				PrintWarning(f"{WeaponDefinition.GetDisplayName()} is empty!", 2, FLinearColor(1.0, 0.5, 0.0));
-			}
-
-			TimeSinceLastShot = 0;
-			return true;
-		}
-
-		return false;
+		return true;
 	}
 
 	UFUNCTION(BlueprintEvent)
@@ -854,26 +835,4 @@ class UGunComponent : UActorComponent
 		auto ASC = AbilitySystem::GetAbilitySystemComponent(OwningHero.PlayerState);
 		ASC.TryActivateAbilityByClass(WeaponDefinition.ReloadGameplayAbility);
 	}
-
-	void Ready()
-	{
-		if (!GetIsReady() && CurrentAmmo > 0)
-		{
-			WeaponDefinition.ReloadStrategy.GunState = EGunState::Ready;
-			BP_Ready();
-			// Print(f"{GunName} readied! Magazine: {CurrentAmmo}/{MaxAmmo}", 2, FLinearColor(0.58, 0.95, 0.49));
-		}
-		else if (CurrentAmmo <= 0)
-		{
-			PrintWarning(f"No ammo to ready! Gun is empty.", 2, FLinearColor(1.0, 0.5, 0.0));
-		}
-	}
-
-	UFUNCTION(BlueprintEvent, NotBlueprintCallable, Category = "Gun | Reload", DisplayName = "Reload")
-	void BP_OnReload()
-	{}
-
-	UFUNCTION(BlueprintEvent, NotBlueprintCallable, Category = "Gun | Reload", DisplayName = "Ready")
-	void BP_Ready()
-	{}
 };

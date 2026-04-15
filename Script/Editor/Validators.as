@@ -145,4 +145,28 @@ class UEntityDefinitionValidator : UPondValidatorBase
 	}
 }
 
+class UEnchantmentValidator : UPondValidatorBase
+{
+	default ValidatedClasses.Add(UEnchantment);
+	default ValidatedClasses.Add(UWeaponEnchantment);
+
+	UFUNCTION(BlueprintOverride)
+	EDataValidationResult ValidateLoadedAsset(UObject InAsset)
+	{
+		auto Enchant = Cast<UWeaponEnchantment>(InAsset);
+		if (!IsValid(Enchant))
+		{
+			AssetPasses(InAsset);
+			return EDataValidationResult::Valid;
+		}
+		if (Enchant.CooldownGameplayEffect == nullptr)
+		{
+			AssetFails(InAsset, FText::FromString("Cooldown is nullptr! \nAll enchants require a cooldown!"));
+			return EDataValidationResult::Invalid;
+		}
+
+        AssetPasses(InAsset);
+		return EDataValidationResult::Valid;
+	}
+}
 #endif

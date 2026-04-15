@@ -74,3 +74,19 @@ namespace Editor
 #endif
 	}
 }
+
+/* -- ACTOR MIXINS -- */
+
+mixin APawn CastToPawn(AActor Actor)
+{
+	auto Result = Cast<APawn>(Actor);
+	ThrowIf(Result == nullptr, f"Cast from {Actor.GetName()} to {APawn.DefaultObject.GetName()} failed!");
+	return Result;
+}
+
+mixin APawn AsPawn(AActor Actor)
+{
+	auto Result = Cast<APawn>(Actor);
+	ThrowIf(Result == nullptr, f"Cast from {Actor.GetName()} to {APawn.DefaultObject.GetName()} failed!");
+	return Result;
+}

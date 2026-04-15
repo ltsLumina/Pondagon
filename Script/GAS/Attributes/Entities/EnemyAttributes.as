@@ -4,11 +4,9 @@ namespace UEnemyAttributes
 	const FName MaxHealthName = n"MaxHealth";
 	const FName ShieldName = n"Shield";
 	const FName MaxShieldName = n"MaxShield";
-	const FName CurrentAmmoName = n"CurrentAmmo";
+	const FName AmmoName = n"Ammo";
 	const FName MaxAmmoName = n"MaxAmmo";
 }
-
-event void FOnEnemyHit(float DamageDealt, bool WasPrecision, bool Died);
 
 class UEnemyAttributes : UAngelscriptAttributeSet
 {
@@ -23,9 +21,6 @@ class UEnemyAttributes : UAngelscriptAttributeSet
 
 	UPROPERTY(BlueprintReadOnly, Category = "Enemy Attributes")
 	FAngelscriptGameplayAttributeData MaxShield;
-
-	UPROPERTY(BlueprintReadOnly, Category = "Events")
-	FOnEnemyHit OnEnemyHit;
 
 	UEnemyAttributes()
 	{
@@ -57,7 +52,7 @@ class UEnemyAttributes : UAngelscriptAttributeSet
 	UFUNCTION(BlueprintOverride)
 	void PreAttributeChange(FGameplayAttribute Attribute, float32& NewValue)
 	{
-		if (Attribute.AttributeName == UPlayerAttributes::HealthName)
+		if (Attribute.AttributeName == UEnemyAttributes::HealthName)
 		{
 			// Value gets rounded to nearest whole value. Prevents enemy from having 0.5hp.
 			// This treatment is not done to players.
@@ -65,7 +60,7 @@ class UEnemyAttributes : UAngelscriptAttributeSet
 
 			NewValue = Math::Clamp(NewValue, 0.0f, MaxHealth.CurrentValue);
 		}
-		else if (Attribute.AttributeName == UPlayerAttributes::ShieldName)
+		else if (Attribute.AttributeName == UEnemyAttributes::ShieldName)
 		{
 			NewValue = Math::Clamp(NewValue, 0.0f, MaxShield.CurrentValue);
 		}
@@ -74,11 +69,11 @@ class UEnemyAttributes : UAngelscriptAttributeSet
 	UFUNCTION(BlueprintOverride)
 	void PostAttributeChange(FGameplayAttribute Attribute, float OldValue, float NewValue)
 	{
-		if (Attribute.AttributeName == UPlayerAttributes::HealthName)
+		if (Attribute.AttributeName == UEnemyAttributes::HealthName)
 		{
 			// Health.SetBaseValue(Math::Clamp(NewValue, 0.0f, MaxHealth.BaseValue));
 		}
-		else if (Attribute.AttributeName == UPlayerAttributes::ShieldName)
+		else if (Attribute.AttributeName == UEnemyAttributes::ShieldName)
 		{
 			// Shield.SetBaseValue(Math::Clamp(NewValue, 0.0f, MaxShield.BaseValue));
 			bool WasShieldBreak = NewValue <= OldValue;
@@ -95,7 +90,7 @@ class UEnemyAttributes : UAngelscriptAttributeSet
 								   FGameplayModifierEvaluatedData& EvaluatedData,
 								   UAngelscriptAbilitySystemComponent AbilitySystemComponent)
 	{
-		if (EvaluatedData.Attribute.AttributeName == UPlayerAttributes::HealthName)
+		if (EvaluatedData.Attribute.AttributeName == UEnemyAttributes::HealthName)
 		{
 			Health.SetCurrentValue(Math::Clamp(Health.CurrentValue, 0, MaxHealth.CurrentValue));
 
@@ -118,10 +113,8 @@ class UEnemyAttributes : UAngelscriptAttributeSet
 
 			if (WasKill)
 				EnemyBase.Death();
-
-			OnEnemyHit.Broadcast(DamageDealt, WasPrecision, WasKill);
 		}
-		else if (EvaluatedData.Attribute.AttributeName == UPlayerAttributes::ShieldName)
+		else if (EvaluatedData.Attribute.AttributeName == UEnemyAttributes::ShieldName)
 		{
 			Shield.SetCurrentValue(Math::Clamp(Shield.CurrentValue, 0, MaxShield.CurrentValue));
 		}

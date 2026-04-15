@@ -75,12 +75,14 @@ class AScriptPondController : APondPlayerController
 	
 	void HandleMovementStates()
 	{
-		APondHero Hero = Cast<APondHero>(ControlledPawn);
+		/*
+		AScriptPondHero Hero = Cast<AScriptPondHero>(ControlledPawn);
 		InputComponent.BindAction(MoveAction, ETriggerEvent::Triggered, FEnhancedInputActionHandlerDynamicSignature(Hero, n"OnMove_Triggered"));
 		InputComponent.BindAction(MoveAction, ETriggerEvent::Completed, FEnhancedInputActionHandlerDynamicSignature(Hero, n"OnMove_Completed"));
 		InputComponent.BindAction(CrouchAction, ETriggerEvent::Triggered, FEnhancedInputActionHandlerDynamicSignature(Hero, n"OnCrouch_Triggered"));
 		InputComponent.BindAction(CrouchAction, ETriggerEvent::Canceled, FEnhancedInputActionHandlerDynamicSignature(Hero, n"OnCrouch_Cancelled"));
 		InputComponent.BindAction(CrouchAction, ETriggerEvent::Completed, FEnhancedInputActionHandlerDynamicSignature(Hero, n"OnCrouch_Completed"));
 		InputComponent.BindAction(JumpAction, ETriggerEvent::Started, FEnhancedInputActionHandlerDynamicSignature(Hero, n"OnJump_Started"));
+		*/
 	}
 };

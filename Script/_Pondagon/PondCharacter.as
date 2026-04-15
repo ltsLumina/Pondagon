@@ -4,87 +4,35 @@ class AScriptPondCharacter : APondCharacter
 	default bReplicates = true;
 	default bReplicateMovement = true;
 
-	UPROPERTY(Category = "AS Components")
-	UAngelscriptAbilitySystemComponent AbilitySystem;
+	UPROPERTY(Category = "Character", EditDefaultsOnly)
+	UEntityDefinition Definition;
 
-	UPlayerAttributes Attributes;
-
-	UFUNCTION(BlueprintPure)
-	EPondMovementState ResolveMovementState()
-	{
-		switch (CharacterMovement.MovementMode)
-		{
-			case EMovementMode::MOVE_Walking:
-				// NOT MOVING
-				if (CharacterMovement.Velocity.IsNearlyZero()) // TODO: maybe do IsWalkingOnGround()
-				{
-					if (CharacterMovement.IsCrouching())
-					{
-						return EPondMovementState::Crouch;
-					}
-					else
-					{
-						return EPondMovementState::Still;
-					}
-				}
-				// IS MOVING
-				else
-				{
-					if (CharacterMovement.IsCrouching())
-					{
-						return EPondMovementState::CrouchWalk;
-					}
-					else if (CharacterMovement.IsMovingOnGround())
-					{
-						return EPondMovementState::Run;
-					}
-				}
-				break;
-
-			case EMovementMode::MOVE_Falling:
-			{
-				// IS AIRBORNE
-				if (CharacterMovement.IsFalling())
-				{
-					return EPondMovementState::Airborne;
-				}
-			}
-			break;
-
-			case EMovementMode::MOVE_None:
-			case EMovementMode::MOVE_NavWalking:
-			case EMovementMode::MOVE_Swimming:
-			case EMovementMode::MOVE_Flying:
-			case EMovementMode::MOVE_Custom:
-			default:
-				return EPondMovementState::Still;
-		}
-
-		return EPondMovementState::Still;
-	}
-
-	UPROPERTY(Category = "Player | Movement", VisibleInstanceOnly)
-	EPondMovementState PreviousMovementState;
-	default PreviousMovementState = EPondMovementState::Run;
-	//~Details
+	UPROPERTY(Category = "Character", VisibleInstanceOnly)
+	UAngelscriptAttributeSet Attributes;
 
 	// #region Attribute Getters
 	UFUNCTION(BlueprintPure)
 	float GetHealth() property
 	{
-		return Attributes.Health.CurrentValue;
+		float32 Result = 0;
+		AbilitySystem.TryGetAttributeCurrentValue(Attributes.Class, n"Health", Result);
+		return Result;
 	}
 
 	UFUNCTION(BlueprintPure)
 	float GetShield() property
 	{
-		return Attributes.Shield.CurrentValue;
+		float32 Result = 0;
+		AbilitySystem.TryGetAttributeCurrentValue(Attributes.Class, n"Shield", Result);
+		return Result;
 	}
 
 	UFUNCTION(BlueprintPure)
 	float GetMoveSpeed() property
 	{
-		return Attributes.MoveSpeed.CurrentValue;
+		float32 Result = 0;
+		AbilitySystem.TryGetAttributeCurrentValue(Attributes.Class, n"MoveSpeed", Result);
+		return Result;
 	}
 	// #endregion
 
@@ -92,27 +40,14 @@ class AScriptPondCharacter : APondCharacter
 	UFUNCTION(BlueprintPure)
 	bool GetIsAlive() property
 	{
-		return Attributes.Health.CurrentValue > 0;
+		return Health > 0;
 	}
 	// #endregion
 
 	UFUNCTION(BlueprintOverride)
 	void ConstructionScript()
 	{
-		check(Cast<UScriptPondCharacterMovementComponent>(CharacterMovement) != nullptr, f"CharacterMovementComponent on {GetName()} was an incorrect type!" 
-																								+ "\n(Expected: UScriptPondCharacterMovementComponent | Actual: {CharacterMovement.GetName()})");
-	}
-
-	float TimeSinceMoving;
-
-	UFUNCTION(BlueprintOverride)
-	void Tick(float DeltaSeconds)
-	{
-		if (ResolveMovementState() == EPondMovementState::Still)
-		{
-			TimeSinceMoving += DeltaSeconds;
-		}
-		else TimeSinceMoving = 0;
+		check(Cast<UScriptPondCharacterMovementComponent>(CharacterMovement) != nullptr, f"CharacterMovementComponent on {GetName()} was an incorrect type!" + "\n(Expected: UScriptPondCharacterMovementComponent | Actual: {CharacterMovement.GetName()})");
 	}
 
 	UFUNCTION()
@@ -129,7 +64,7 @@ class AScriptPondCharacter : APondCharacter
 			AbilitySystem.RemoveActiveGameplayEffect(Handle);
 		}
 
-		PrintWarning("Player died!");
+		PrintWarning(f"{ActorNameOrLabel} died!");
 		DestroyActor();
 	}
 }

@@ -135,7 +135,7 @@ class UGenericGunAttributes : UAngelscriptAttributeSet
 	{
 		if (Attribute.AttributeName == UGenericGunAttributes::AmmoName)
 		{
-			Print(f"Remaining Ammo: {NewValue}", 1.0f, FLinearColor::Purple);
+			//Print(f"Remaining Ammo: {NewValue}", 1.0f, FLinearColor::Purple);
 		}
 	}
 
@@ -150,9 +150,9 @@ class UGenericGunAttributes : UAngelscriptAttributeSet
 		}
 	}
 
-	APondHero GetOwningHero() property
+	AScriptPondHero GetOwningHero() property
 	{
 		auto PS = Cast<APlayerState>(GetOwningActor());
-		return Cast<APondHero>(PS.Pawn);
+		return Cast<AScriptPondHero>(PS.Pawn);
 	}
 }

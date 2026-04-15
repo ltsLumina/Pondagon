@@ -10,9 +10,6 @@ namespace UPlayerAttributes
 	const FName MaxMoveSpeedName = n"MaxMoveSpeed";
 }
 
-event void FOnHealthChanged(float NewHealth, float OldHealth);
-event void FOnShieldChanged(float NewShield, float OldShield);
-
 class UPlayerAttributes : UAngelscriptAttributeSet
 {
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Health, Category = "Hero Attributes")
@@ -32,6 +29,9 @@ class UPlayerAttributes : UAngelscriptAttributeSet
 
 	UPROPERTY(BlueprintReadOnly, Category = "Hero Attributes")
 	FAngelscriptGameplayAttributeData MaxMoveSpeed;
+
+		UPROPERTY(BlueprintReadOnly, Category = "Hero Attributes")
+	FAngelscriptGameplayAttributeData NewAttribute;
 
 	UPlayerAttributes()
 	{
@@ -114,9 +114,9 @@ class UPlayerAttributes : UAngelscriptAttributeSet
 		}
 	}
 
-	APondHero GetOwningHero() property
+	AScriptPondHero GetOwningHero() property
 	{
 		auto PS = Cast<APlayerState>(GetOwningActor());
-		return Cast<APondHero>(PS.Pawn);
+		return Cast<AScriptPondHero>(PS.Pawn);
 	}
 }

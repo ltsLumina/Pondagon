@@ -6,30 +6,34 @@ class UGEXC_PrecisionHitCalculation : UGEXC_DamageCalculationBase
 {
 	default RelevantAttributesToCapture.Add(UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UEnemyAttributes, UEnemyAttributes::HealthName, EGameplayEffectAttributeCaptureSource::Target, false));
 	default RelevantAttributesToCapture.Add(UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UEnemyAttributes, UEnemyAttributes::ShieldName, EGameplayEffectAttributeCaptureSource::Target, false));
+	default RelevantAttributesToCapture.Add(UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UGenericGunAttributes, UGenericGunAttributes::PrecisionName, EGameplayEffectAttributeCaptureSource::Source, false));
 
 	UFUNCTION(BlueprintOverride)
 	void Execute(FGameplayEffectCustomExecutionParameters ExecutionParams,
 				 FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const
 	{
 		float32 RawDamage = 0.f;
-		RawDamage = ExecutionParams.GetOwningSpec().GetSetByCallerMagnitude(GameplayTags::SetByCaller_Damage, true, RawDamage);
+		RawDamage = ExecutionParams.GetOwningSpec().GetSetByCallerMagnitude(GameplayTags::SetByCaller_Damage, true);
 
-		FWeaponStats Stats = GetWeaponStats(ExecutionParams.SourceAbilitySystemComponent);
-
-		float BaseDamage = Stats.GetDamage();
 		bool IsPrecisionHit = ExecutionParams.OwningSpec.DynamicAssetTags.HasTag(GameplayTags::Data_IsPrecision);
-		float Multiplier = Stats.GetPrecision();
+
+		float32 PrecisionMult = 0.f;
+		if (IsPrecisionHit)
+		{
+			FGameplayEffectAttributeCaptureDefinition PrecisionAttribute = UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UGenericGunAttributes, UGenericGunAttributes::PrecisionName, EGameplayEffectAttributeCaptureSource::Source, false);
+			ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(PrecisionAttribute, FGameplayEffectExecutionParameters(), PrecisionMult);
+		}
 
 		float32 CurrentHealth = 0.f;
-		FGameplayEffectAttributeCaptureDefinition HealthAttribute = UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UEnemyAttributes, n"Health", EGameplayEffectAttributeCaptureSource::Target, false);
+		FGameplayEffectAttributeCaptureDefinition HealthAttribute = UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UEnemyAttributes, UEnemyAttributes
+		::HealthName, EGameplayEffectAttributeCaptureSource::Target, false);
 		ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(HealthAttribute, FGameplayEffectExecutionParameters(), CurrentHealth);
 
-		// TODO: Update source plugin UAngelscriptGameplayEffectUtils.cpp
 		float32 CurrentShield = 0.f;
-		auto AttributeDef = UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UEnemyAttributes, n"Shield", EGameplayEffectAttributeCaptureSource::Target, false);
+		auto AttributeDef = UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UEnemyAttributes, UEnemyAttributes::ShieldName, EGameplayEffectAttributeCaptureSource::Target, false);
 		ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(AttributeDef, FGameplayEffectExecutionParameters(), CurrentShield);
-		
-		FDamageResult Result = CalculateDamageDistribution(BaseDamage, IsPrecisionHit, Multiplier, CurrentHealth, CurrentShield);
+
+		FDamageResult Result = CalculateDamageDistribution(RawDamage, IsPrecisionHit, PrecisionMult, CurrentHealth, CurrentShield);
 		OutExecutionOutput.ApplyGenericDamage(Result, this);
 
 		/*
@@ -52,6 +56,11 @@ class UGEXC_PrecisionHitCalculation : UGEXC_DamageCalculationBase
 	}
 }
 
+/**
+ * DO NOT USE THIS!!
+ * ONLY FOR DEBUG/TESTING!
+ */
+UCLASS(Deprecated)
 class UGEC_StandardDamageCalculation : UGameplayModMagnitudeCalculation
 {
 

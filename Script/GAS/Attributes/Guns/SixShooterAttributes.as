@@ -41,9 +41,9 @@ class USixShooterAttributes : UAngelscriptAttributeSet
 		}
 	}
 
-	APondHero GetOwningHero() property
+	AScriptPondHero GetOwningHero() property
 	{
 		auto PS = Cast<APlayerState>(GetOwningActor());
-		return Cast<APondHero>(PS.Pawn);
+		return Cast<AScriptPondHero>(PS.Pawn);
 	}
 }

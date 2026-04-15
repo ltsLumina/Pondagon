@@ -12,11 +12,11 @@ class UGEXC_GenericDamageCalculation : UGEXC_DamageCalculationBase
 	void Execute(FGameplayEffectCustomExecutionParameters ExecutionParams,
 				 FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const
 	{
-		float BaseDamage = ExecutionParams.OwningSpec.GetSetByCallerMagnitude(GameplayTags::SetByCaller_Damage);
+		float RawDamage = ExecutionParams.OwningSpec.GetSetByCallerMagnitude(GameplayTags::SetByCaller_Damage);
 
         float32 CurrentHealth = GetHealthMagnitude(ExecutionParams, EGameplayEffectAttributeCaptureSource::Target);
         float32 CurrentShield = GetShieldMagnitude(ExecutionParams, EGameplayEffectAttributeCaptureSource::Target);
-		FDamageResult Result = CalculateDamageDistribution(BaseDamage, false, 0, CurrentHealth, CurrentShield);
+		FDamageResult Result = CalculateDamageDistribution(RawDamage, false, 0, CurrentHealth, CurrentShield);
 
 		OutExecutionOutput.ApplyGenericDamage(Result, this);
 	}

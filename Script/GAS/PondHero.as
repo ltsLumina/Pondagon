@@ -8,8 +8,10 @@ enum EPondMovementState
 	CrouchWalk
 };
 
-class APondHero : AScriptPondCharacter
+class AScriptPondHero : AScriptPondCharacter
 {
+	default AbilitySystem.SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
+
 	// Components
 	UPROPERTY(DefaultComponent, Attach = "CharacterMesh0")
 	USkeletalMeshComponent FirstPersonMesh;
@@ -22,12 +24,63 @@ class APondHero : AScriptPondCharacter
 	default GunComponent = UGunComponent::Get(this);
 	//~Components
 
-	// Details
-	UPROPERTY(Category = "Player | Details")
-	UEntityDefinition Definition;
+	UFUNCTION(BlueprintPure)
+	EPondMovementState ResolveMovementState()
+	{
+		switch (CharacterMovement.MovementMode)
+		{
+			case EMovementMode::MOVE_Walking:
+				// NOT MOVING
+				if (CharacterMovement.Velocity.IsNearlyZero()) // TODO: maybe do IsWalkingOnGround()
+				{
+					if (CharacterMovement.IsCrouching())
+					{
+						return EPondMovementState::Crouch;
+					}
+					else
+					{
+						return EPondMovementState::Still;
+					}
+				}
+				// IS MOVING
+				else
+				{
+					if (CharacterMovement.IsCrouching())
+					{
+						return EPondMovementState::CrouchWalk;
+					}
+					else if (CharacterMovement.IsMovingOnGround())
+					{
+						return EPondMovementState::Run;
+					}
+				}
+				break;
 
-	UPROPERTY(Category = "Player | Visuals")
-	UParticleSystem DeathEffect;
+			case EMovementMode::MOVE_Falling:
+			{
+				// IS AIRBORNE
+				if (CharacterMovement.IsFalling())
+				{
+					return EPondMovementState::Airborne;
+				}
+			}
+			break;
+
+			case EMovementMode::MOVE_None:
+			case EMovementMode::MOVE_NavWalking:
+			case EMovementMode::MOVE_Swimming:
+			case EMovementMode::MOVE_Flying:
+			case EMovementMode::MOVE_Custom:
+			default:
+				return EPondMovementState::Still;
+		}
+
+		return EPondMovementState::Still;
+	}
+
+	UPROPERTY(Category = "Player | Movement", VisibleInstanceOnly)
+	EPondMovementState PreviousMovementState;
+	default PreviousMovementState = EPondMovementState::Run;
 
 	UFUNCTION(BlueprintOverride)
 	void ConstructionScript()
@@ -80,14 +133,20 @@ class APondHero : AScriptPondCharacter
 		}
 	}
 
+	float TimeSinceMoving;
 	bool PrintMoveState = false;
 	bool HasInitialized = false;
 
 	UFUNCTION(BlueprintOverride)
 	void Tick(float DeltaSeconds)
 	{
-		Super::Tick(DeltaSeconds);
-		
+		if (ResolveMovementState() == EPondMovementState::Still)
+		{
+			TimeSinceMoving += DeltaSeconds;
+		}
+		else
+			TimeSinceMoving = 0;
+
 		if (PrintMoveState)
 		{
 			auto State = ResolveMovementState();
@@ -107,57 +166,10 @@ class APondHero : AScriptPondCharacter
 #endif
 		}
 	}
-
-	UFUNCTION()
-	void Stun()
-	{
-		AbilitySystem.AddLooseGameplayTag(GameplayTags::Character_State_Stunned);
-	}
-
-	// #region Movement State Handling
-	UFUNCTION(NotBlueprintCallable)
-	private void OnMove_Triggered(FInputActionValue ActionValue, float32 ElapsedTime,
-						  float32 TriggeredTime, const UInputAction SourceAction)
-	{
-	}
-
-	UFUNCTION(NotBlueprintCallable)
-	private void OnMove_Completed(FInputActionValue ActionValue, float32 ElapsedTime,
-						  float32 TriggeredTime, const UInputAction SourceAction)
-	{
-	}
-
-	UFUNCTION(NotBlueprintCallable)
-	private void OnCrouch_Triggered(FInputActionValue ActionValue, float32 ElapsedTime,
-							float32 TriggeredTime, const UInputAction SourceAction)
-	{
-	}
-
-	UFUNCTION(NotBlueprintCallable)
-	private void OnCrouch_Cancelled(FInputActionValue ActionValue, float32 ElapsedTime,
-							float32 TriggeredTime, const UInputAction SourceAction)
-	{
-	}
-
-	UFUNCTION(NotBlueprintCallable)
-	private void OnCrouch_Completed(FInputActionValue ActionValue, float32 ElapsedTime,
-							float32 TriggeredTime, const UInputAction SourceAction)
-	{
-	}
-
-	UFUNCTION(NotBlueprintCallable)
-	private void OnJump_Started(FInputActionValue ActionValue, float32 ElapsedTime,
-						float32 TriggeredTime, const UInputAction SourceAction)
-	{
-	}
-	// #endregion
 };
 
-namespace Pond
+UFUNCTION(BlueprintPure)
+mixin AScriptPondHero AsHero(AScriptPondCharacter PondCharacter)
 {
-	UFUNCTION(BlueprintPure)
-	APondHero GetPondHeroBase(AScriptPondCharacter PondCharacter)
-	{
-		return Cast<APondHero>(PondCharacter);
-	}
+	return Cast<AScriptPondHero>(PondCharacter);
 }

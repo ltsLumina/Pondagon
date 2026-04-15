@@ -6,7 +6,7 @@ class AScriptPondPlayerState : APondPlayerState
 	//~Components
 
 	UPROPERTY(Category = "Team", BlueprintReadOnly)
-    int RespawnTokens = 1;
+	int RespawnTokens = 1;
 
 	UFUNCTION(BlueprintOverride)
 	void ConstructionScript()
@@ -28,7 +28,7 @@ class AScriptPondPlayerState : APondPlayerState
 
 	void Initialize()
 	{
-		auto Hero = Cast<APondHero>(Pawn);
+		auto Hero = Cast<AScriptPondHero>(Pawn);
 		check(Hero != nullptr);
 		check(!Hero.Definition.StartingData.IsEmpty());
 
@@ -42,6 +42,12 @@ class AScriptPondPlayerState : APondPlayerState
 		AbilitySystem.OnAttributeChanged.AddUFunction(this, n"MaxHealthChanged");
 		AbilitySystem.OnAttributeChanged.AddUFunction(this, n"MoveSpeedChanged");
 		AbilitySystem.OnAttributeChanged.AddUFunction(this, n"MaxMoveSpeedChanged");
+
+#if EDITOR
+		float SpawnHealth = AbilitySystem.GetAttributeCurrentValue(UPlayerAttributes, UPlayerAttributes::HealthName);
+		float SpawnShield = AbilitySystem.GetAttributeCurrentValue(UPlayerAttributes, UPlayerAttributes::ShieldName);
+		Print(f"Player '{ActorNameOrLabel}' has spawned with {SpawnHealth} health and {SpawnShield} Shield.", 1.5f, FLinearColor::Green);
+#endif
 	}
 
 	UFUNCTION(NotBlueprintCallable)

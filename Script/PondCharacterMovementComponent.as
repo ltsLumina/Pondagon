@@ -38,4 +38,27 @@ class UScriptPondCharacterMovementComponent : UPondCharacterMovementComponent
 
 		return Char.GetMoveSpeed();
 	}
+
+	UFUNCTION(BlueprintOverride)
+	bool CanAttemptJump() const
+	{
+		AScriptPondCharacter Char = Cast<AScriptPondCharacter>(GetOwner());
+		if (!IsValid(Char))
+		{
+			throw(f"No owner found on '{GetOwner().ActorNameOrLabel}'");
+			return false;
+		}
+
+		if (!Char.IsAlive)
+		{
+			return false;
+		}
+
+		if (Char.AbilitySystem.HasGameplayTag(GameplayTags::Character_State_Stunned))
+		{
+			return false;
+		}
+
+		return true;
+	}
 }
