@@ -74,6 +74,15 @@ public:
 	UFUNCTION(BlueprintNativeEvent)
 	float BP_GetMaxSpeed() const;
 	
+	virtual bool CanAttemptJump() const override;
+	
+	/**
+	 * @remarks Overriden in AS.
+	 * @remarks Do not override in C++.
+	 */
+	UFUNCTION(BlueprintNativeEvent)
+	bool BP_CanAttemptJump() const;
+	
 	virtual void UpdateFromCompressedFlags(uint8 Flags) override;
 	virtual class FNetworkPredictionData_Client* GetPredictionData_Client() const override;
 

@@ -9,10 +9,21 @@ float UPondCharacterMovementComponent::GetMaxSpeed() const
 	return BP_GetMaxSpeed();
 }
 
+bool UPondCharacterMovementComponent::CanAttemptJump() const
+{
+	return BP_CanAttemptJump();
+}
+
 float UPondCharacterMovementComponent::BP_GetMaxSpeed_Implementation() const
 {
 	checkf(true, TEXT("%s: should be implemented in script only!"), *FString(__FUNCTION__));
 	return -1;
+}
+
+bool UPondCharacterMovementComponent::BP_CanAttemptJump_Implementation() const
+{
+	checkf(true, TEXT("%s: should be implemented in script only!"), *FString(__FUNCTION__));
+	return false;
 }
 
 void UPondCharacterMovementComponent::UpdateFromCompressedFlags(uint8 Flags)

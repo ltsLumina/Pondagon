@@ -3,20 +3,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AngelscriptGASCharacter.h"
 #include "PondCharacterMovementComponent.h"
 
 #include "GameFramework/Character.h"
 #include "PondCharacter.generated.h"
 
 UCLASS()
-class PENTAGONGAME_API APondCharacter : public ACharacter
+class PENTAGONGAME_API APondCharacter : public AAngelscriptGASCharacter
 {
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	TSubclassOf<UPondCharacterMovementComponent> MovementComponentClass;
-
 	explicit APondCharacter(const class FObjectInitializer& ObjectInitializer);
 	
 protected:
