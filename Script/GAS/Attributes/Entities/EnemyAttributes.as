@@ -10,17 +10,23 @@ namespace UEnemyAttributes
 
 class UEnemyAttributes : UAngelscriptAttributeSet
 {
-	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Health, Category = "Enemy Attributes")
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Health, Category = "Hero Attributes")
 	FAngelscriptGameplayAttributeData Health;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Enemy Attributes")
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_MaxHealth, Category = "Hero Attributes")
 	FAngelscriptGameplayAttributeData MaxHealth;
 
-	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Shield, Category = "Enemy Attributes")
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Shield, Category = "Hero Attributes")
 	FAngelscriptGameplayAttributeData Shield;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Enemy Attributes")
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_MaxShield, Category = "Hero Attributes")
 	FAngelscriptGameplayAttributeData MaxShield;
+
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_MoveSpeed, Category = "Hero Attributes")
+	FAngelscriptGameplayAttributeData MoveSpeed;
+
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_MaxMoveSpeed, Category = "Hero Attributes")
+	FAngelscriptGameplayAttributeData MaxMoveSpeed;
 
 	UEnemyAttributes()
 	{
@@ -28,6 +34,8 @@ class UEnemyAttributes : UAngelscriptAttributeSet
 		MaxHealth.Initialize(100.0f);
 		Shield.Initialize(100.0f);
 		MaxShield.Initialize(100.0f);
+		MoveSpeed.Initialize(600.0f);
+		MaxMoveSpeed.Initialize(600.0f);
 	}
 
 	// #region On_Rep
@@ -38,7 +46,31 @@ class UEnemyAttributes : UAngelscriptAttributeSet
 	}
 
 	UFUNCTION(NotBlueprintCallable)
+	void OnRep_MaxHealth(FAngelscriptGameplayAttributeData& OldAttributeData)
+	{
+		OnRep_Attribute(OldAttributeData);
+	}
+
+	UFUNCTION(NotBlueprintCallable)
 	void OnRep_Shield(FAngelscriptGameplayAttributeData& OldAttributeData)
+	{
+		OnRep_Attribute(OldAttributeData);
+	}
+
+	UFUNCTION(NotBlueprintCallable)
+	void OnRep_MaxShield(FAngelscriptGameplayAttributeData& OldAttributeData)
+	{
+		OnRep_Attribute(OldAttributeData);
+	}
+
+	UFUNCTION(NotBlueprintCallable)
+	void OnRep_MoveSpeed(FAngelscriptGameplayAttributeData& OldAttributeData)
+	{
+		OnRep_Attribute(OldAttributeData);
+	}
+
+	UFUNCTION(NotBlueprintCallable)
+	void OnRep_MaxMoveSpeed(FAngelscriptGameplayAttributeData& OldAttributeData)
 	{
 		OnRep_Attribute(OldAttributeData);
 	}
