@@ -6,10 +6,32 @@ class UScriptPondCharacterMovementComponent : UPondCharacterMovementComponent
 	UPROPERTY()
 	float ADSSpeedMultiplier = 0.5f;
 
+	AScriptPondCharacter Char;
+	UWeaponDefinition Definition;
+
+	UFUNCTION(BlueprintOverride)
+	void BeginPlay()
+	{
+		Char = Cast<AScriptPondCharacter>(GetOwner());
+	}
+
+	UFUNCTION(BlueprintOverride)
+	void Tick(float DeltaSeconds)
+	{
+		// Poll for weapon definition.
+
+		UGunComponent GunComponent = UGunComponent::Get(GetOwner());
+		if (!IsValid(GunComponent)) return;
+
+		if (GunComponent.WeaponDefinition != nullptr)
+		{
+			Definition = UGunComponent::Get(GetOwner()).WeaponDefinition;
+		}
+	}
+
 	UFUNCTION(BlueprintOverride)
 	float BP_GetMaxSpeed() const
-	{		
-		AScriptPondCharacter Char = Cast<AScriptPondCharacter>(GetOwner());
+	{
 		if (!IsValid(Char))
 		{
 			throw(f"No owner found on '{GetOwner().ActorNameOrLabel}'");
@@ -26,14 +48,17 @@ class UScriptPondCharacterMovementComponent : UPondCharacterMovementComponent
 			return 0.0f;
 		}
 
-		if (RequestToStartSprinting)
+		if (IsValid(Definition))
 		{
-			return Char.GetMoveSpeed() * SprintSpeedMultiplier;
-		}
+			if (RequestToStartSprinting)
+			{
+				return Char.GetMoveSpeed() * Definition.SprintMoveSpeedRatio;
+			}
 
-		if (RequestToStartADS)
-		{
-			return Char.GetMoveSpeed() * ADSSpeedMultiplier;
+			if (RequestToStartADS)
+			{
+				return Char.GetMoveSpeed() * Definition.AltMoveSpeedRatio;
+			}
 		}
 
 		return Char.GetMoveSpeed();
@@ -42,7 +67,6 @@ class UScriptPondCharacterMovementComponent : UPondCharacterMovementComponent
 	UFUNCTION(BlueprintOverride)
 	bool CanAttemptJump() const
 	{
-		AScriptPondCharacter Char = Cast<AScriptPondCharacter>(GetOwner());
 		if (!IsValid(Char))
 		{
 			throw(f"No owner found on '{GetOwner().ActorNameOrLabel}'");

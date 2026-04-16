@@ -166,6 +166,24 @@ class AScriptPondHero : AScriptPondCharacter
 #endif
 		}
 	}
+
+	// - Input Events
+
+	UFUNCTION(NotBlueprintCallable)
+    private void StartSprinting(FInputActionValue ActionValue, float32 ElapsedTime,
+                                float32 TriggeredTime, const UInputAction SourceAction)
+    {
+		auto PondCharMove = Cast<UScriptPondCharacterMovementComponent>(CharacterMovement);
+		PondCharMove.StartSprinting();
+    }
+
+	UFUNCTION(NotBlueprintCallable)
+    private void StopSprinting(FInputActionValue ActionValue, float32 ElapsedTime,
+                               float32 TriggeredTime, const UInputAction SourceAction)
+    {
+		auto PondCharMove = Cast<UScriptPondCharacterMovementComponent>(CharacterMovement);
+		PondCharMove.StopSprinting();
+    }
 };
 
 UFUNCTION(BlueprintPure)

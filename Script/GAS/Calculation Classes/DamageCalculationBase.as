@@ -52,18 +52,6 @@ class UGEXC_DamageCalculationBase : UGameplayEffectExecutionCalculation
 		Result.ShieldDamage = ShieldDamage;
 		return Result;
 	}
-
-	FWeaponStats GetWeaponStats(UAbilitySystemComponent SourceAbilitySystem) const
-	{
-		UWeaponDefinition Def;
-
-		auto PS = SourceAbilitySystem.GetOwner();
-		auto Char = Cast<APlayerState>(PS).Pawn;
-
-		auto GunComponent = UGunComponent::Get(Char).CurrentGun;
-		Def = GunComponent.WeaponDefinition;
-		return Def.Stats;
-	}
 }
 
 mixin void

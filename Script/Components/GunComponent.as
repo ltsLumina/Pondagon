@@ -1,3 +1,8 @@
+namespace UGunComponent
+{
+	const float TRACE_DISTANCE = 10000.0f;
+}
+
 enum EFireMode
 {
 	Semi,
@@ -89,6 +94,7 @@ class UGunComponent : UActorComponent
 	UFUNCTION(BlueprintPure)
 	UWeaponDefinition GetWeaponDefinition() property
 	{
+		if (CurrentGun == nullptr) return nullptr;
 		return CurrentGun.WeaponDefinition;
 	}
 
@@ -219,8 +225,6 @@ class UGunComponent : UActorComponent
 		}
 	}
 
-	bool CanFireProtectedBullet = true;
-
 	UFUNCTION(BlueprintOverride)
 	void Tick(float DeltaSeconds)
 	{
@@ -271,7 +275,7 @@ class UGunComponent : UActorComponent
 	FVector TraceStart;
 	FVector TraceEnd;
 
-	FVector GetTargetPoint(float MaxDistance = 10000.0f)
+	FVector GetTargetPoint(float MaxDistance = UGunComponent::TRACE_DISTANCE)
 	{
 		FVector Location;
 		FRotator Rotation;
@@ -363,7 +367,7 @@ class UGunComponent : UActorComponent
 	 */
 	void Fire()
 	{
-		FVector TargetPoint = GetTargetPoint(10000.0f);
+		FVector TargetPoint = GetTargetPoint(UGunComponent::TRACE_DISTANCE);
 
 		float ConeExtents;
 		FVector SpreadPoint = GetSpreadPoint(TargetPoint, ConeExtents);
@@ -372,7 +376,7 @@ class UGunComponent : UActorComponent
 		AActor TargetActor = SweepForTarget(Hit);
 		FVector MagnetizedPoint = GetMagnetizedPoint(TargetActor, Hit, SpreadPoint);
 
-		FVector ImpactPoint = TraceStart + (IsValid(TargetActor) ? MagnetizedPoint : SpreadPoint) * 10000.0f;
+		FVector ImpactPoint = TraceStart + (IsValid(TargetActor) ? MagnetizedPoint : SpreadPoint) * UGunComponent::TRACE_DISTANCE;
 		TraceFinalHit(ImpactPoint);
 
 		if (GetOwner().HasAuthority())
@@ -536,24 +540,16 @@ class UGunComponent : UActorComponent
 		auto Instigator = OwningHero.Controller;
 		auto HitEnemy = Cast<AScriptEnemyBase>(LastHit.Actor);
 		bool WasEnemyHit = IsValid(HitEnemy);
-		float Damage = WeaponDefinition.GetDamage();
 
 		BulletHit = FBulletHit();
 		BulletHit.Instigator = Instigator;
-		BulletHit.Damage = Damage;
 		BulletHit.Hit = LastHit;
 		BulletHit.IsPrecisionHit = WasEnemyHit && LastHit.BoneName == n"Head";
 
 		BulletHit.HitEnemy = HitEnemy;
-		if (WasEnemyHit)
-		{
-			BulletHit.IsShieldBreak = (HitEnemy.Shield - Damage) <= 0;
-			BulletHit.IsKill = (HitEnemy.Health - Damage <= 0);
-		}
 
 		Payload.Instigator = OwningHero.Controller;
 		Payload.Target = LastHit.Actor;
-		Payload.EventMagnitude = Damage;
 		Payload.TargetData = AbilitySystem::AbilityTargetDataFromHitResult(LastHit);
 
 		auto ASC = AbilitySystem::GetAngelscriptAbilitySystemComponent(OwningHero.PlayerState);
@@ -724,6 +720,8 @@ class UGunComponent : UActorComponent
 		ASC.TryActivateAbilityByClass(WeaponDefinition.ShootGameplayAbility);
 	}
 
+	bool CanFireProtectedBullet = true;
+
 	/**
 	 * Generic shoot function.
 	 * TODO: May want to make this only fire on authority to prevent BulletIndex from being manipulated by the client.
@@ -850,19 +848,7 @@ class UGunComponent : UActorComponent
 	}
 
 	UFUNCTION(NotBlueprintCallable)
-	private void CancelledADS(FInputActionValue ActionValue, float32 InElapsedTime,
-					  float32 InTriggeredTime, const UInputAction SourceAction)
-	{
-	}
-
-	UFUNCTION(NotBlueprintCallable)
-	private void TriggeredADS(FInputActionValue ActionValue, float32 InElapsedTime,
-					  float32 InTriggeredTime, const UInputAction SourceAction)
-	{
-	}
-
-	UFUNCTION(NotBlueprintCallable)
-	private void EndADS(FInputActionValue ActionValue, float32 InElapsedTime, float32 InTriggeredTime,
+	private void EndAimDownSights(FInputActionValue ActionValue, float32 InElapsedTime, float32 InTriggeredTime,
 				const UInputAction SourceAction)
 	{
 		if (!IsAltMode)

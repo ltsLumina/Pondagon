@@ -18,8 +18,11 @@ class AScriptPondController : APondPlayerController
 	UPROPERTY(Category = "Input | Actions | Movement")
 	UInputAction JumpAction;
 
-	UPROPERTY(Category = "Input | Actions | Guns")
+	UPROPERTY(Category = "Input | Actions | Movement")
 	UInputAction CrouchAction;
+
+	UPROPERTY(Category = "Input | Actions | Movement")
+	UInputAction SprintAction;
 
 	UPROPERTY(Category = "Input | Actions | Guns")
 	UInputAction ShootAction;
@@ -58,21 +61,26 @@ class AScriptPondController : APondPlayerController
 
     void SubscribeInputEvents()
     {
+		auto Hero = Cast<AScriptPondHero>(ControlledPawn);
+
+		InputComponent.BindAction(SprintAction, ETriggerEvent::Started, FEnhancedInputActionHandlerDynamicSignature(Hero, n"StartSprinting"));
+		InputComponent.BindAction(SprintAction, ETriggerEvent::Completed, FEnhancedInputActionHandlerDynamicSignature(Hero, n"StopSprinting"));
+		
         auto GunComponent = UGunComponent::Get(ControlledPawn);
         
         // Shooting
 		InputComponent.BindAction(ShootAction, ETriggerEvent::Triggered, FEnhancedInputActionHandlerDynamicSignature(GunComponent, n"Interim_Shoot"));
 
 		// ADS (Aim Down Sights)
-		InputComponent.BindAction(ADS_Action, ETriggerEvent::Started, FEnhancedInputActionHandlerDynamicSignature(GunComponent, n"StartADS"));
-		InputComponent.BindAction(ADS_Action, ETriggerEvent::Canceled, FEnhancedInputActionHandlerDynamicSignature(GunComponent, n"CancelledADS"));
-		InputComponent.BindAction(ADS_Action, ETriggerEvent::Triggered, FEnhancedInputActionHandlerDynamicSignature(GunComponent, n"TriggeredADS"));
-		InputComponent.BindAction(ADS_Action, ETriggerEvent::Completed, FEnhancedInputActionHandlerDynamicSignature(GunComponent, n"EndADS"));
+		InputComponent.BindAction(ADS_Action, ETriggerEvent::Started, FEnhancedInputActionHandlerDynamicSignature(GunComponent, n"StartAimDownSights"));
+		//InputComponent.BindAction(ADS_Action, ETriggerEvent::Canceled, FEnhancedInputActionHandlerDynamicSignature(GunComponent, n"CancelledADS"));
+		//InputComponent.BindAction(ADS_Action, ETriggerEvent::Triggered, FEnhancedInputActionHandlerDynamicSignature(GunComponent, n"TriggeredADS"));
+		InputComponent.BindAction(ADS_Action, ETriggerEvent::Completed, FEnhancedInputActionHandlerDynamicSignature(GunComponent, n"EndAimDownSights"));
 
 		// Reloading
 		InputComponent.BindAction(ReloadAction, ETriggerEvent::Triggered, FEnhancedInputActionHandlerDynamicSignature(GunComponent, n"Interim_Reload"));
     }
-	
+
 	void HandleMovementStates()
 	{
 		/*

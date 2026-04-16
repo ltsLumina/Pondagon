@@ -15,23 +15,20 @@ class UPlayerAttributes : UAngelscriptAttributeSet
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Health, Category = "Hero Attributes")
 	FAngelscriptGameplayAttributeData Health;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Hero Attributes")
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_MaxHealth, Category = "Hero Attributes")
 	FAngelscriptGameplayAttributeData MaxHealth;
 
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Shield, Category = "Hero Attributes")
 	FAngelscriptGameplayAttributeData Shield;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Hero Attributes")
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_MaxShield, Category = "Hero Attributes")
 	FAngelscriptGameplayAttributeData MaxShield;
 
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_MoveSpeed, Category = "Hero Attributes")
 	FAngelscriptGameplayAttributeData MoveSpeed;
 
-	UPROPERTY(BlueprintReadOnly, Category = "Hero Attributes")
+	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_MaxMoveSpeed, Category = "Hero Attributes")
 	FAngelscriptGameplayAttributeData MaxMoveSpeed;
-
-		UPROPERTY(BlueprintReadOnly, Category = "Hero Attributes")
-	FAngelscriptGameplayAttributeData NewAttribute;
 
 	UPlayerAttributes()
 	{
@@ -51,13 +48,31 @@ class UPlayerAttributes : UAngelscriptAttributeSet
 	}
 
 	UFUNCTION(NotBlueprintCallable)
+	void OnRep_MaxHealth(FAngelscriptGameplayAttributeData& OldAttributeData)
+	{
+		OnRep_Attribute(OldAttributeData);
+	}
+
+	UFUNCTION(NotBlueprintCallable)
 	void OnRep_Shield(FAngelscriptGameplayAttributeData& OldAttributeData)
 	{
 		OnRep_Attribute(OldAttributeData);
 	}
 
 	UFUNCTION(NotBlueprintCallable)
+	void OnRep_MaxShield(FAngelscriptGameplayAttributeData& OldAttributeData)
+	{
+		OnRep_Attribute(OldAttributeData);
+	}
+
+	UFUNCTION(NotBlueprintCallable)
 	void OnRep_MoveSpeed(FAngelscriptGameplayAttributeData& OldAttributeData)
+	{
+		OnRep_Attribute(OldAttributeData);
+	}
+
+	UFUNCTION(NotBlueprintCallable)
+	void OnRep_MaxMoveSpeed(FAngelscriptGameplayAttributeData& OldAttributeData)
 	{
 		OnRep_Attribute(OldAttributeData);
 	}

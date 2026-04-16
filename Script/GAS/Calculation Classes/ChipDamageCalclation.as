@@ -5,31 +5,30 @@ class UGEXC_ChipDamageCalculation : UGEXC_DamageCalculationBase
 {
 	UFUNCTION(BlueprintOverride)
 	void Execute(FGameplayEffectCustomExecutionParameters ExecutionParams,
-	             FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const
+				 FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const
 	{
-        UWeaponDefinition Def;
-        
-        auto PS = ExecutionParams.SourceAbilitySystemComponent.GetOwner();
-        auto Char = Cast<APlayerState>(PS).Pawn;
+		float32 RawDamage = 0.f;
+		RawDamage = ExecutionParams.GetOwningSpec().GetSetByCallerMagnitude(GameplayTags::SetByCaller_Damage, true);
 
-        auto GunComponent = UGunComponent::Get(Char).CurrentGun;
-        Def = GunComponent.WeaponDefinition;
-        
 		bool IsPrecisionHit = ExecutionParams.OwningSpec.DynamicAssetTags.HasTag(GameplayTags::Data_IsPrecision);
-		float Multiplier = Def.Stats.Advanced.Precision;
+		float32 PrecisionMult = 0.f;
+		if (IsPrecisionHit)
+		{
+			FGameplayEffectAttributeCaptureDefinition PrecisionAttribute = UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UGenericGunAttributes, UGenericGunAttributes::PrecisionName, EGameplayEffectAttributeCaptureSource::Source, false);
+			ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(PrecisionAttribute, FGameplayEffectExecutionParameters(), PrecisionMult);
+		}
 
 		auto EnemyAttributes = ExecutionParams.TargetAbilitySystemComponent.GetAttributeSet(UEnemyAttributes);
 
-		float BaseDamage = Def.GetDamage();
 		float CurrentHealth = EnemyAttributes.Health.CurrentValue;
 		float CurrentShield = EnemyAttributes.Shield.CurrentValue;
 		float HealthDamage;
 		float ShieldDamage;
-		
-		HealthUtils::CalculateDamageTaken(BaseDamage, CurrentHealth, CurrentShield, HealthDamage, ShieldDamage);
 
-		float FinalHealthDamage = HealthDamage * (IsPrecisionHit ? Multiplier : 1.0f);
-		float FinalShieldDamage = ShieldDamage * (IsPrecisionHit ? Multiplier : 1.0f);
+		HealthUtils::CalculateDamageTaken(RawDamage, CurrentHealth, CurrentShield, HealthDamage, ShieldDamage);
+
+		float FinalHealthDamage = HealthDamage * (IsPrecisionHit ? PrecisionMult : 1.0f);
+		float FinalShieldDamage = ShieldDamage * (IsPrecisionHit ? PrecisionMult : 1.0f);
 
 		// HEALTH
 
@@ -38,8 +37,8 @@ class UGEXC_ChipDamageCalculation : UGEXC_DamageCalculationBase
 		HealthEvaluatedData = UAngelscriptGameplayEffectUtils::MakeGameplayModifierEvaluationData(HealthAttribute, EGameplayModOp::Additive, -FinalHealthDamage);
 		OutExecutionOutput.AddOutputModifier(HealthEvaluatedData);
 
-		PrintFromObject(Def, f"{FinalHealthDamage=}", 1.5f, FLinearColor::Red);
-		
+		PrintFromObject(this, f"Chip Damage Health: {FinalHealthDamage}", 1.5f, FLinearColor::Red);
+
 		// SHIELD
 
 		FGameplayModifierEvaluatedData ShieldEvaluatedData;
@@ -49,6 +48,6 @@ class UGEXC_ChipDamageCalculation : UGEXC_DamageCalculationBase
 		ShieldEvaluatedData.SetMagnitude(-FinalShieldDamage);
 		OutExecutionOutput.AddOutputModifier(ShieldEvaluatedData);
 
-		PrintFromObject(Def, f"{FinalShieldDamage=}", 1.5f, FLinearColor::Blue);
+		PrintFromObject(this, f"Chip Damage Shield: {FinalShieldDamage}", 1.5f, FLinearColor::Blue);
 	}
 }

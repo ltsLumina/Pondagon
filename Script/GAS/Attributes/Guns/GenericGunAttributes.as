@@ -50,7 +50,7 @@ class UGenericGunAttributes : UAngelscriptAttributeSet
 	{
 		Ammo.Initialize(30.0f);
 		MaxAmmo.Initialize(30.0f);
-		Zoom.Initialize(1.0f);
+		Zoom.Initialize(1.25f);
 		FireRate.Initialize(30.0f);
 		ReloadSpeed.Initialize(1.0f);
 		AimAssist.Initialize(1.5f);
