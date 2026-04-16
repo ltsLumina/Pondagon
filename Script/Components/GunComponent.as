@@ -1,12 +1,3 @@
-event void FOnFire(FBulletHit Hit);
-event void FOnHit(FBulletHit Hit);
-event void FOnKill(FBulletHit Hit);
-event void FOnPrecisionHit(FBulletHit Hit);
-event void FOnPrecisionKill(FBulletHit Hit);
-event void FOnLastBullet(FMagazineState State);
-event void FOnReload(FMagazineState State);
-event void FOnMagazineEmpty(FMagazineState State);
-
 enum EFireMode
 {
 	Semi,
@@ -57,28 +48,29 @@ mixin FHitResult GetHitResult(FBulletHit BulletHit)
 }
 // #endregion
 
-struct FMagazineState
-{
-	UPROPERTY(BlueprintReadOnly)
-	int CurrentAmmo;
-
-	UPROPERTY(BlueprintReadOnly)
-	int MaxAmmo;
-
-	UPROPERTY(BlueprintReadOnly)
-	bool IsEmpty;
-
-	FMagazineState(int InCurrentAmmo, int InMaxAmmo, bool InIsEmpty)
-	{
-		CurrentAmmo = InCurrentAmmo;
-		MaxAmmo = InMaxAmmo;
-		IsEmpty = InIsEmpty;
-	}
-}
-
+UCLASS(Meta = (PrioritizeCategories = "Debug"))
 class UGunComponent : UActorComponent
 {
 	default bReplicates = true;
+	default ComponentTickEnabled = false;
+	default PrimaryComponentTick.bStartWithTickEnabled = false;
+
+	UPROPERTY(Category = "Debug")
+	EDrawDebugTrace DebugTrace = EDrawDebugTrace::Persistent;
+
+	UPROPERTY(Category = "Debug", Meta = (EditCondition = "DebugTrace == EDrawDebugTrace::ForDuration", EditConditionHides))
+	float DebugTraceDuration = 5.0f;
+
+	UPROPERTY(Category = "Debug")
+	bool DrawLines = true;
+
+	UPROPERTY(Category = "Debug")
+	bool DrawCones = true;
+
+	UPROPERTY(Category = "Debug")
+	bool PrintSpreadInfo = true;
+
+	// - end debug
 
 	UPROPERTY(Category = "Gun", EditDefaultsOnly, BlueprintReadOnly)
 	UWeaponDefinition DefaultGun;
@@ -103,9 +95,6 @@ class UGunComponent : UActorComponent
 	UPROPERTY(NotVisible, BlueprintReadOnly)
 	AScriptPondHero OwningHero;
 
-	UPROPERTY(Category = "Gun | Scope", VisibleInstanceOnly)
-	bool IsScoped;
-
 	UPROPERTY(Category = "Hero | GAS", EditConst)
 	const UGenericGunAttributes GenericGunAttributes;
 
@@ -129,7 +118,6 @@ class UGunComponent : UActorComponent
 	 */
 	UPROPERTY(Category = "Gun | Shooting", VisibleAnywhere, BlueprintReadOnly)
 	float RPM;
-	// default RPM = WeaponDefinition != nullptr ? WeaponDefinition.FireRate * 60 : 0;
 
 	/**
 	 * The cooldown time between shots, in seconds.
@@ -137,7 +125,6 @@ class UGunComponent : UActorComponent
 	 */
 	UPROPERTY(Category = "Gun | Shooting", VisibleAnywhere, BlueprintReadOnly, Meta = (Units = "Seconds"))
 	float ShootCooldown = 0.1f;
-	// default ShootCooldown = WeaponDefinition != nullptr ? (1.0 / WeaponDefinition.FireRate) : -1;
 
 	/**
 	 * The time elapsed since the last shot was fired, in seconds.
@@ -195,39 +182,13 @@ class UGunComponent : UActorComponent
 
 	// - alt fire
 
+	UPROPERTY(Category = "Gun | Alt Fire", VisibleInstanceOnly, BlueprintReadOnly)
 	bool IsAltMode = false;
 
-	UPROPERTY(Category = "State", BlueprintReadOnly)
+	UPROPERTY(Category = "State", NotVisible, BlueprintReadOnly)
 	FBulletHit BulletHit;
 
-	UPROPERTY(Category = "State", BlueprintReadOnly)
-	FMagazineState MagazineState;
-
 	// - Events
-
-	UPROPERTY(Category = "Events")
-	FOnFire OnFire;
-
-	UPROPERTY(Category = "Events")
-	FOnHit OnHit;
-
-	UPROPERTY(Category = "Events")
-	FOnKill OnKill;
-
-	UPROPERTY(Category = "Events")
-	FOnPrecisionHit OnPrecisionHit;
-
-	UPROPERTY(Category = "Events")
-	FOnPrecisionKill OnPrecisionKill;
-
-	UPROPERTY(Category = "Events")
-	FOnLastBullet OnLastBullet;
-
-	UPROPERTY(Category = "Events")
-	FOnReload OnReload;
-
-	UPROPERTY(Category = "Events")
-	FOnMagazineEmpty OnMagazineEmpty;
 
 	void Initialize()
 	{
@@ -243,7 +204,8 @@ class UGunComponent : UActorComponent
 	}
 
 	UFUNCTION(BlueprintEvent)
-	void OnInitialize() {}
+	void OnInitialize()
+	{}
 
 	UFUNCTION(BlueprintAuthorityOnly)
 	void GrantAbilities(UAbilitySystemComponent ASC)
@@ -258,15 +220,21 @@ class UGunComponent : UActorComponent
 	}
 
 	bool CanFireProtectedBullet = true;
-	default ComponentTickEnabled = false;
 
 	UFUNCTION(BlueprintOverride)
 	void Tick(float DeltaSeconds)
 	{
 		TimeSinceLastShot += DeltaSeconds;
+
+		if (WeaponDefinition.AltModeUsesZoom)
+		{
+			if (IsAltMode)
+				Timeline_ZoomIn(DeltaSeconds);
+			else
+				Timeline_ZoomOut(DeltaSeconds);
+		}
 	}
 
-	UFUNCTION(BlueprintPure, Category = "Gun | Accuracy", Meta = (AdvancedDisplay = "ConeWidth,ConeHeight,ErrorAngle,IsAccurate"))
 	FVector ApplySpread(FVector AimDirection, float SpreadDeg, FBulletSpreadData&out OutSpreadData = FBulletSpreadData())
 	{
 		float SpreadRad = Math::DegreesToRadians(SpreadDeg);
@@ -296,18 +264,12 @@ class UGunComponent : UActorComponent
 		OutSpreadData.ConeWidth = Math::Atan2(Math::Abs(OffsetX), 1.0f);
 		OutSpreadData.ConeHeight = Math::Atan2(Math::Abs(OffsetY), 1.0f);
 		OutSpreadData.ErrorAngle = Math::RadiansToDegrees(Math::Acos(SpreadDir.DotProduct(AimDirection)));
-		OutSpreadData.IsAccurate = AccuracyCone.ErrorAngle <= 0.01f;
 
 		return SpreadDir;
 	}
 
 	FVector TraceStart;
 	FVector TraceEnd;
-
-	// for debug only.
-	EDrawDebugTrace DebugTrace = EDrawDebugTrace::Persistent;
-	float DebugTraceDuration = 5.0f;
-	bool DrawCones = true;
 
 	FVector GetTargetPoint(float MaxDistance = 10000.0f)
 	{
@@ -376,18 +338,20 @@ class UGunComponent : UActorComponent
 
 		Spread += Penalty;
 
-		bool IsProtected = IsBulletProtected(MovementState);
-		Spread = IsProtected ? WeaponDefinition.StandingSpread : Spread;
-		FString ProtectedSuffix = IsProtected ? "(Protected)" : "";
-		Print(f"{Spread=}° degrees {ProtectedSuffix}", 1, FLinearColor(0.5, 0.5, 1.0));
+		if (PrintSpreadInfo)
+		{
+			bool IsProtected = IsBulletProtected(MovementState);
+			Spread = IsProtected ? WeaponDefinition.StandingSpread : Spread;
+			FString ProtectedSuffix = IsProtected ? "(Protected)" : "";
+			Print(f"{Spread=}° degrees {ProtectedSuffix}", 1, FLinearColor(0.5, 0.5, 1.0));
+		}
+
 		return Spread;
 	}
 
 	TArray<FHitResult> Hits;
 	bool BlockingHit;
 	FGameplayEventData Payload;
-
-	FTimerHandle Handle;
 
 	/**
 	 * Fires four traces, which each serve a separate purpose toward calculating where a bullet will hit.
@@ -641,6 +605,8 @@ class UGunComponent : UActorComponent
 		if (!(GetOwner().AsPawn()).IsLocallyControlled())
 			return;
 
+		if (!DrawLines) return;
+
 		FHitResult DummyHit;
 		System::LineTraceSingle(
 			InStart,
@@ -660,6 +626,8 @@ class UGunComponent : UActorComponent
 	{
 		if (!(GetOwner().AsPawn()).IsLocallyControlled())
 			return;
+
+		if (!DrawLines) return;
 
 		FHitResult DummyHit;
 		System::LineTraceSingle(
@@ -801,31 +769,109 @@ class UGunComponent : UActorComponent
 		return true;
 	}
 
-	UFUNCTION(BlueprintEvent)
-	private void StartADS(FInputActionValue ActionValue, float32 InElapsedTime, float32 InTriggeredTime,
-				  const UInputAction SourceAction)
+	float PreAimDownSightsFOV;
+	bool HasStartedZooming = false;
+	float TargetFOV = 0;
+
+	/**
+	 * Divide-by-zero helper.
+	 */
+	float GetZoomMultiplier() const
 	{
+		float ZoomValue = GenericGunAttributes.Zoom.CurrentValue;
+		ThrowIf(ZoomValue <= 0, "Cannot divide by zero!");
+
+		float Result = Math::Max(ZoomValue, 0.01f);
+		return Result;
 	}
 
-	UFUNCTION(BlueprintEvent)
+	void Timeline_ZoomIn(float DeltaSeconds)
+	{
+		auto Camera = UCameraComponent::Get(GetOwner());
+		if (!IsValid(Camera))
+			return;
+
+		if (!HasStartedZooming)
+		{
+			if (PreAimDownSightsFOV <= 0.0f)
+				PreAimDownSightsFOV = Camera.FieldOfView;
+
+			TargetFOV = PreAimDownSightsFOV / GetZoomMultiplier();
+			HasStartedZooming = true;
+		}
+
+		Camera.FieldOfView = Math::FInterpTo(Camera.FieldOfView, TargetFOV, DeltaSeconds, 20);
+
+		if (Math::IsNearlyEqual(Camera.FieldOfView, TargetFOV, 0.1f))
+		{
+			Camera.FieldOfView = TargetFOV;
+			HasStartedZooming = false;
+		}
+	}
+
+	void Timeline_ZoomOut(float DeltaSeconds)
+	{
+		auto Camera = UCameraComponent::Get(GetOwner());
+		if (!IsValid(Camera))
+			return;
+
+		if (!HasStartedZooming)
+		{
+			if (PreAimDownSightsFOV <= 0.0f)
+				PreAimDownSightsFOV = Camera.FieldOfView;
+
+			TargetFOV = PreAimDownSightsFOV;
+			HasStartedZooming = true;
+		}
+
+		Camera.FieldOfView = Math::FInterpTo(Camera.FieldOfView, TargetFOV, DeltaSeconds, 20);
+
+		if (Math::IsNearlyEqual(Camera.FieldOfView, TargetFOV, 0.1f))
+		{
+			Camera.FieldOfView = TargetFOV;
+			HasStartedZooming = false;
+		}
+	}
+
+	UFUNCTION(NotBlueprintCallable)
+	private void StartAimDownSights(FInputActionValue ActionValue, float32 InElapsedTime, float32 InTriggeredTime,
+							const UInputAction SourceAction)
+	{
+		if (IsAltMode)
+			return;
+
+		auto Camera = UCameraComponent::Get(GetOwner());
+		if (IsValid(Camera))
+			PreAimDownSightsFOV = Camera.FieldOfView;
+		HasStartedZooming = false;
+
+		IsAltMode = true;
+		UPondCharacterMovementComponent::Get(GetOwner()).StartAimDownSights();
+	}
+
+	UFUNCTION(NotBlueprintCallable)
 	private void CancelledADS(FInputActionValue ActionValue, float32 InElapsedTime,
 					  float32 InTriggeredTime, const UInputAction SourceAction)
 	{
-		IsAltMode = false;
 	}
 
-	UFUNCTION(BlueprintEvent)
+	UFUNCTION(NotBlueprintCallable)
 	private void TriggeredADS(FInputActionValue ActionValue, float32 InElapsedTime,
 					  float32 InTriggeredTime, const UInputAction SourceAction)
 	{
-		IsAltMode = true;
 	}
 
-	UFUNCTION(BlueprintEvent)
+	UFUNCTION(NotBlueprintCallable)
 	private void EndADS(FInputActionValue ActionValue, float32 InElapsedTime, float32 InTriggeredTime,
 				const UInputAction SourceAction)
 	{
+		if (!IsAltMode)
+			return;
+
+		HasStartedZooming = false;
+
 		IsAltMode = false;
+		UPondCharacterMovementComponent::Get(GetOwner()).StopAimDownSights();
 	}
 
 	UFUNCTION(NotBlueprintCallable)
