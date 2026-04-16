@@ -11,61 +11,8 @@ class UWeaponDefinition : UPrimaryDataAsset
 	UPROPERTY(Category = "Definition", EditDefaultsOnly, BlueprintReadOnly)
 	UItemDefinition ItemDefinition;
 
-	UPROPERTY(Category = "Gun | Stats", EditDefaultsOnly, BlueprintReadOnly)
-	FWeaponStats Stats;
-
-	// - movement
-	UPROPERTY(Category = "Gun | Movement", EditDefaultsOnly, BlueprintReadOnly, Meta = (ClampMin = "0.1", UIMin = "0.1", UIMax = "6.75", Units = "m/s"))
-	float RunSpeed = 5.4f;
-
-	UPROPERTY(Category = "Gun | Movement", VisibleAnywhere, BlueprintReadOnly, BlueprintGetter = "GetWalkSpeed", Meta = (Units = "m/s"))
-	float WalkSpeed;
-	default WalkSpeed = RunSpeed * WalkSpeedRatio;
-
-	UPROPERTY(Category = "Gun | Movement", VisibleAnywhere, BlueprintReadOnly, BlueprintGetter = "GetCrouchSpeed", Meta = (Units = "m/s"))
-	float CrouchSpeed;
-	default CrouchSpeed = RunSpeed * CrouchSpeedRatio;
-
-	UPROPERTY(Category = "Gun | Movement", EditDefaultsOnly, BlueprintReadOnly, Meta = (ClampMin = "0.1", UIMin = "0.1", UIMax = "1", Units = ("x")))
-	float WalkSpeedRatio = 0.80f;
-
-	UPROPERTY(Category = "Gun | Movement", EditDefaultsOnly, BlueprintReadOnly, Meta = (ClampMin = "0.1", UIMin = "0.1", UIMax = "1", Units = ("x")))
-	float CrouchSpeedRatio = 0.40f;
-
-	// - movement helpers
-
-	UFUNCTION(BlueprintPure, Category = "Gun | Movement")
-	float GetMovementSpeed(EPondMovementState State, bool IsAltMode)
-	{
-		switch (State)
-		{
-			case EPondMovementState::Still:
-			case EPondMovementState::Run:
-				return RunSpeed * (IsAltMode ? AltMoveSpeedRatio : 1.0f);
-
-			case EPondMovementState::Walk:
-				return GetWalkSpeed() * (IsAltMode ? AltMoveSpeedRatio : 1.0f);
-
-			case EPondMovementState::Crouch:
-			case EPondMovementState::CrouchWalk:
-				return GetCrouchSpeed() * (IsAltMode ? AltMoveSpeedRatio : 1.0f);
-
-			default:
-				return RunSpeed;
-		}
-	}
-
-	UFUNCTION(BlueprintPure, Category = "Gun | Movement")
-	float GetWalkSpeed()
-	{
-		return RunSpeed * WalkSpeedRatio;
-	}
-
-	UFUNCTION(BlueprintPure, Category = "Gun | Movement")
-	float GetCrouchSpeed()
-	{
-		return RunSpeed * CrouchSpeedRatio;
-	}
+	//UPROPERTY(Category = "Gun | Stats", EditDefaultsOnly, BlueprintReadOnly)
+	//FWeaponStats Stats;
 
 	// - equip
 	UPROPERTY(Category = "Gun | Equip", EditDefaultsOnly, BlueprintReadOnly, Meta = (Units = "Seconds"))
@@ -153,20 +100,18 @@ class UWeaponDefinition : UPrimaryDataAsset
 	UPROPERTY(Category = "Gun | Recoil", EditDefaultsOnly, Meta = (ClampMin = "1.0", UIMin = "1.0", ClampMax = "3.0", UIMax = "3.0"))
 	float VerticalRecoilRunningMultiplier = 2.0f;
 
-	float Zoom = 1.25;
+	// - alt mode / zoom
 
-	/**
-	 * The fire rate when using alternate fire mode, in rounds per second.
-	 */
-	float AltFireRate;
-	default AltFireRate = Stats.Advanced.FireRate * 0.9f;
+	UPROPERTY(Category = "Gun | Alt Mode")
+	bool AltModeUsesZoom = true;
 
+	UPROPERTY(Category = "Gun | Alt Mode", Meta = (Units="x"))
 	float AltMoveSpeedRatio = 0.76f;
 
-	// - reload
+	// - movement
 
-	UPROPERTY(Category = "Gun | Reload | Magazine", Instanced)
-	UReloadStrategyBase ReloadStrategy;
+	UPROPERTY(Category = "Gun | Sprint", Meta = (Units="x"))
+	float SprintMoveSpeedRatio = 1.50f;
 
 	// - audio
 
@@ -253,12 +198,6 @@ class UWeaponDefinition : UPrimaryDataAsset
 	{
 		return ItemDefinition.DisplayName;
 	}
-
-	UFUNCTION(BlueprintPure)
-	float GetDamage() const
-	{
-		return Stats.Advanced.Damage;
-	}
 	//~Helper Functions
 }
 
@@ -267,7 +206,6 @@ struct FBulletSpreadData
 	float ConeWidth;
 	float ConeHeight;
 	float ErrorAngle;
-	bool IsAccurate;
 }
 
 struct FWeaponStats
