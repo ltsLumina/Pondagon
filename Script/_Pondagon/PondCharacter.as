@@ -1,13 +1,13 @@
-UCLASS(Abstract)
+UCLASS(Abstract, Meta=(PrioritizeCategories="Entity"))
 class AScriptPondCharacter : APondCharacter
 {
 	default bReplicates = true;
 	default bReplicateMovement = true;
 
-	UPROPERTY(Category = "Character", EditDefaultsOnly)
+	UPROPERTY(Category = "Entity", EditDefaultsOnly)
 	UEntityDefinition Definition;
 
-	UPROPERTY(Category = "Character", VisibleInstanceOnly)
+	UPROPERTY(Category = "Entity", VisibleInstanceOnly)
 	UAngelscriptAttributeSet Attributes;
 
 	// #region Attribute Getters

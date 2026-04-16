@@ -45,12 +45,11 @@ class UWeaponDefinition : UPrimaryDataAsset
 	UPROPERTY(Category = "Gun | GAS", EditDefaultsOnly, BlueprintReadOnly)
 	UDataTable AttributeSetDefaultStartingData;
 
-	/**
-	 * The GameplayEffect that gets invoked when the gun is fired.
-	 * @note MUST UPDATE AMMO!
-	 */
 	UPROPERTY(Category = "Gun | GAS", EditDefaultsOnly, BlueprintReadOnly)
 	TSubclassOf<UGameplayAbility> ShootGameplayAbility;
+
+	UPROPERTY(Category = "Gun | GAS", EditDefaultsOnly, BlueprintReadOnly)
+	TSubclassOf<UGameplayAbility> AltFireGameplayAbility;
 
 	UPROPERTY(Category = "Gun | GAS", EditDefaultsOnly, BlueprintReadOnly)
 	TSubclassOf<UGameplayAbility> ReloadGameplayAbility;

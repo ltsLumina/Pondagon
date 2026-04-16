@@ -1,6 +1,10 @@
 namespace UGunComponent
 {
 	const float TRACE_DISTANCE = 10000.0f;
+
+	const int FIRE_INPUTID = 0;
+	const int ALT_FIRE_INPUTID = 1;
+	const int RELOAD_INPUTID = 2;
 }
 
 enum EFireMode
@@ -80,14 +84,13 @@ class UGunComponent : UActorComponent
 	UPROPERTY(Category = "Gun", EditDefaultsOnly, BlueprintReadOnly)
 	UWeaponDefinition DefaultGun;
 
-	UPROPERTY(Category = "Gun", VisibleInstanceOnly, BlueprintReadOnly)
+	UPROPERTY(Category = "Gun", NotVisible, BlueprintReadOnly)
 	UWeaponInstance CurrentGun;
 
 	UFUNCTION(Category = "Gun", Meta = (DeterminesOutputType = "Instance"))
 	UWeaponInstance RegisterCurrentGun(UWeaponInstance Instance)
 	{
 		CurrentGun = Instance;
-
 		return CurrentGun;
 	}
 
@@ -101,7 +104,7 @@ class UGunComponent : UActorComponent
 	UPROPERTY(NotVisible, BlueprintReadOnly)
 	AScriptPondHero OwningHero;
 
-	UPROPERTY(Category = "Hero | GAS", EditConst)
+	UPROPERTY(Category = "Hero | GAS", NotVisible, BlueprintReadOnly)
 	const UGenericGunAttributes GenericGunAttributes;
 
 	UFUNCTION(Category = "Gun | Ammo", BlueprintPure)
@@ -122,14 +125,14 @@ class UGunComponent : UActorComponent
 	 * The rounds per minute (RPM) of the gun, calculated from the fire rate.
 	 * This is a derived property and is read-only.
 	 */
-	UPROPERTY(Category = "Gun | Shooting", VisibleAnywhere, BlueprintReadOnly)
+	UPROPERTY(Category = "Gun | Shooting", VisibleInstanceOnly, BlueprintReadOnly)
 	float RPM;
 
 	/**
 	 * The cooldown time between shots, in seconds.
 	 * This is calculated as the inverse of the fire rate.
 	 */
-	UPROPERTY(Category = "Gun | Shooting", VisibleAnywhere, BlueprintReadOnly, Meta = (Units = "Seconds"))
+	UPROPERTY(Category = "Gun | Shooting", VisibleInstanceOnly, BlueprintReadOnly, Meta = (Units = "Seconds"))
 	float ShootCooldown = 0.1f;
 
 	/**
@@ -216,8 +219,9 @@ class UGunComponent : UActorComponent
 	UFUNCTION(BlueprintAuthorityOnly)
 	void GrantAbilities(UAbilitySystemComponent ASC)
 	{
-		ASC.GiveAbility(WeaponDefinition.ShootGameplayAbility, 0, -1);
-		ASC.GiveAbility(WeaponDefinition.ReloadGameplayAbility, 0, -1);
+		ASC.GiveAbility(WeaponDefinition.ShootGameplayAbility, 0, UGunComponent::FIRE_INPUTID);
+		ASC.GiveAbility(WeaponDefinition.AltFireGameplayAbility, 0, UGunComponent::ALT_FIRE_INPUTID);
+		ASC.GiveAbility(WeaponDefinition.ReloadGameplayAbility, 0, UGunComponent::RELOAD_INPUTID);
 
 		for (auto& Enchant : CurrentGun.Enchantments)
 		{
@@ -545,7 +549,6 @@ class UGunComponent : UActorComponent
 		BulletHit.Instigator = Instigator;
 		BulletHit.Hit = LastHit;
 		BulletHit.IsPrecisionHit = WasEnemyHit && LastHit.BoneName == n"Head";
-
 		BulletHit.HitEnemy = HitEnemy;
 
 		Payload.Instigator = OwningHero.Controller;
@@ -720,6 +723,16 @@ class UGunComponent : UActorComponent
 		ASC.TryActivateAbilityByClass(WeaponDefinition.ShootGameplayAbility);
 	}
 
+	UFUNCTION(NotBlueprintCallable)
+	private void Interim_AltFire(FInputActionValue ActionValue, float32 InElapsedTime,
+					   float32 InTriggeredTime, const UInputAction SourceAction)
+	{
+		this.ElapsedTime = InElapsedTime;
+		this.TriggeredTime = InTriggeredTime;
+
+		
+	}
+
 	bool CanFireProtectedBullet = true;
 
 	/**
@@ -845,6 +858,9 @@ class UGunComponent : UActorComponent
 
 		IsAltMode = true;
 		UPondCharacterMovementComponent::Get(GetOwner()).StartAimDownSights();
+
+		auto ASC = AbilitySystem::GetAngelscriptAbilitySystemComponent(OwningHero.PlayerState);
+		ASC.TryActivateAbilityByClass(WeaponDefinition.AltFireGameplayAbility);
 	}
 
 	UFUNCTION(NotBlueprintCallable)
@@ -858,6 +874,9 @@ class UGunComponent : UActorComponent
 
 		IsAltMode = false;
 		UPondCharacterMovementComponent::Get(GetOwner()).StopAimDownSights();
+
+		auto ASC = AbilitySystem::GetAngelscriptAbilitySystemComponent(OwningHero.PlayerState);
+		ASC.ReleaseInputID(69);
 	}
 
 	UFUNCTION(NotBlueprintCallable)
