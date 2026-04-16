@@ -76,3 +76,4 @@ DerivedDataCache/*
 
 # Ignore .uproject file
 *.uproject
+PentagonGame.uproject
