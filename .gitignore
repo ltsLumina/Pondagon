@@ -77,3 +77,16 @@ DerivedDataCache/*
 # Ignore .uproject file
 *.uproject
 PentagonGame.uproject
+
+# RIDER SPECIFIC FILES
+
+# Default ignored files
+/shelf/
+/workspace.xml
+# Rider ignored files
+/modules.xml
+/projectSettingsUpdater.xml
+/.idea.PentagonGame.iml
+/contentModel.xml
+# Editor-based HTTP Client requests
+/httpRequests/
