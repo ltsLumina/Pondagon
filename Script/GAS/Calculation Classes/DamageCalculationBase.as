@@ -2,6 +2,17 @@ struct FDamageResult
 {
 	float ShieldDamage;
 	float HealthDamage;
+	bool IsPrecisionHit;
+}
+
+enum EGameplayEffectTargetType
+{
+	Player,
+	Enemy,
+	/**
+	 * Not used anywhere yet.
+	 */
+	Other,
 }
 
 /**
@@ -19,19 +30,28 @@ class UGEXC_DamageCalculationBase : UGameplayEffectExecutionCalculation
 		return ExecutionParams.OwningSpec.GetSetByCallerMagnitude(GameplayTags::SetByCaller_Damage);
 	}
 	
-	float32 GetHealthMagnitude(FGameplayEffectCustomExecutionParameters ExecutionParams, EGameplayEffectAttributeCaptureSource Source = EGameplayEffectAttributeCaptureSource::Target) const
+	float32 GetHealthMagnitude(FGameplayEffectCustomExecutionParameters ExecutionParams, EGameplayEffectTargetType Target, EGameplayEffectAttributeCaptureSource Source = EGameplayEffectAttributeCaptureSource::Target) const
 	{
 		float32 CurrentHealth = 0.f;
-		FGameplayEffectAttributeCaptureDefinition HealthAttribute = UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UEnemyAttributes, UEnemyAttributes::HealthName, Source, false);
+		
+		FGameplayEffectAttributeCaptureDefinition HealthAttribute;
+		if (Target == EGameplayEffectTargetType::Player) HealthAttribute = UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UPlayerAttributes, UPlayerAttributes::ShieldName, Source, false);
+		if (Target == EGameplayEffectTargetType::Enemy) HealthAttribute = UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UEnemyAttributes, UEnemyAttributes::ShieldName, Source, false);
+
 		ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(HealthAttribute, FGameplayEffectExecutionParameters(), CurrentHealth);
 		return CurrentHealth;
 	}
 
-	float32 GetShieldMagnitude(FGameplayEffectCustomExecutionParameters ExecutionParams, EGameplayEffectAttributeCaptureSource Source = EGameplayEffectAttributeCaptureSource::Target) const
+	float32 GetShieldMagnitude(FGameplayEffectCustomExecutionParameters ExecutionParams, EGameplayEffectTargetType Target, EGameplayEffectAttributeCaptureSource Source = EGameplayEffectAttributeCaptureSource::Target) const
 	{
 		float32 CurrentShield = 0.f;
-		FGameplayEffectAttributeCaptureDefinition HealthAttribute = UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UEnemyAttributes, UEnemyAttributes::ShieldName, Source, false);
-		ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(HealthAttribute, FGameplayEffectExecutionParameters(), CurrentShield);
+		
+		FGameplayEffectAttributeCaptureDefinition ShieldAttribute;
+		if (Target == EGameplayEffectTargetType::Player) ShieldAttribute = UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UPlayerAttributes, UPlayerAttributes::ShieldName, Source, false);
+		if (Target == EGameplayEffectTargetType::Enemy) ShieldAttribute = UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UEnemyAttributes, UEnemyAttributes::ShieldName, Source, false);
+		
+		
+		ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(ShieldAttribute, FGameplayEffectExecutionParameters(), CurrentShield);
 		return CurrentShield;
 	}
 
@@ -50,16 +70,20 @@ class UGEXC_DamageCalculationBase : UGameplayEffectExecutionCalculation
 
 		Result.HealthDamage = HealthDamage * (IsPrecisionHit ? PrecisionMultiplier : 1.0f);
 		Result.ShieldDamage = ShieldDamage;
+		Result.IsPrecisionHit = IsPrecisionHit;
 		return Result;
 	}
 }
 
 mixin void
-ApplyGenericDamage(FGameplayEffectCustomExecutionOutput& OutExecutionOutput, FDamageResult Result, const UObject WorldContextObject = nullptr)
+ApplyGenericDamage(FGameplayEffectCustomExecutionOutput& OutExecutionOutput, EGameplayEffectTargetType Target, FDamageResult& Result, const UObject WorldContextObject = nullptr)
 {
 	if (Result.ShieldDamage > 0)
 	{
-		FGameplayAttribute ShieldAttribute = UAngelscriptAttributeSet::GetGameplayAttribute(UEnemyAttributes, UEnemyAttributes::ShieldName);
+		FGameplayAttribute ShieldAttribute;
+		if (Target == EGameplayEffectTargetType::Player) ShieldAttribute = UAngelscriptAttributeSet::GetGameplayAttribute(UPlayerAttributes, UPlayerAttributes::HealthName);
+		if (Target == EGameplayEffectTargetType::Enemy) ShieldAttribute = UAngelscriptAttributeSet::GetGameplayAttribute(UEnemyAttributes, UEnemyAttributes::ShieldName);
+		
 		OutExecutionOutput.AddOutputModifier(UAngelscriptGameplayEffectUtils::MakeGameplayModifierEvaluationData(ShieldAttribute, EGameplayModOp::Additive, -Result.ShieldDamage));
 
 		if (WorldContextObject != nullptr)
@@ -67,10 +91,13 @@ ApplyGenericDamage(FGameplayEffectCustomExecutionOutput& OutExecutionOutput, FDa
 	}
 	else if (Result.HealthDamage > 0)
 	{
-		FGameplayAttribute HealthAttribute = UAngelscriptAttributeSet::GetGameplayAttribute(UEnemyAttributes, UEnemyAttributes::HealthName);
+		FGameplayAttribute HealthAttribute;
+		if (Target == EGameplayEffectTargetType::Player) HealthAttribute = UAngelscriptAttributeSet::GetGameplayAttribute(UPlayerAttributes, UPlayerAttributes::HealthName);
+		if (Target == EGameplayEffectTargetType::Enemy) HealthAttribute = UAngelscriptAttributeSet::GetGameplayAttribute(UEnemyAttributes, UEnemyAttributes::HealthName);
+
 		OutExecutionOutput.AddOutputModifier(UAngelscriptGameplayEffectUtils::MakeGameplayModifierEvaluationData(HealthAttribute, EGameplayModOp::Additive, -Result.HealthDamage));
 
 		if (WorldContextObject != nullptr)
-			PrintFromObject(WorldContextObject, f"{Result.HealthDamage=}", 1.5f, FLinearColor::Red);
+			PrintFromObject(WorldContextObject, f"{Result.HealthDamage=} (Precision: {Result.IsPrecisionHit})", 1.5f, FLinearColor::Red);
 	}
 }

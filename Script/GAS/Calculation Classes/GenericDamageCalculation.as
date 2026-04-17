@@ -14,10 +14,10 @@ class UGEXC_GenericDamageCalculation : UGEXC_DamageCalculationBase
 	{
 		float RawDamage = ExecutionParams.OwningSpec.GetSetByCallerMagnitude(GameplayTags::SetByCaller_Damage);
 
-        float32 CurrentHealth = GetHealthMagnitude(ExecutionParams, EGameplayEffectAttributeCaptureSource::Target);
-        float32 CurrentShield = GetShieldMagnitude(ExecutionParams, EGameplayEffectAttributeCaptureSource::Target);
+        float32 CurrentHealth = GetHealthMagnitude(ExecutionParams, EGameplayEffectTargetType::Enemy, EGameplayEffectAttributeCaptureSource::Target);
+        float32 CurrentShield = GetShieldMagnitude(ExecutionParams, EGameplayEffectTargetType::Enemy, EGameplayEffectAttributeCaptureSource::Target);
 		FDamageResult Result = CalculateDamageDistribution(RawDamage, false, 0, CurrentHealth, CurrentShield);
 
-		OutExecutionOutput.ApplyGenericDamage(Result, this);
+		OutExecutionOutput.ApplyGenericDamage(EGameplayEffectTargetType::Enemy, Result, this);
 	}
 }

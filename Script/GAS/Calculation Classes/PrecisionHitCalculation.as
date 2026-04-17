@@ -34,7 +34,7 @@ class UGEXC_PrecisionHitCalculation : UGEXC_DamageCalculationBase
 		ExecutionParams.AttemptCalculateCapturedAttributeMagnitude(AttributeDef, FGameplayEffectExecutionParameters(), CurrentShield);
 
 		FDamageResult Result = CalculateDamageDistribution(RawDamage, IsPrecisionHit, PrecisionMult, CurrentHealth, CurrentShield);
-		OutExecutionOutput.ApplyGenericDamage(Result, this);
+		OutExecutionOutput.ApplyGenericDamage(EGameplayEffectTargetType::Enemy, Result, this);
 
 		/*
 				auto EnemyASC = ExecutionParams.TargetAbilitySystemComponent;

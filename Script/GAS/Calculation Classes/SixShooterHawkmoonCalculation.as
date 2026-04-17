@@ -1,7 +1,7 @@
 class UGEXC_SixShooterHawkmonCalculation : UGEXC_DamageCalculationBase
 {
 	default RelevantAttributesToCapture.Add(UAngelscriptGameplayEffectUtils::CaptureGameplayAttribute(UGenericGunAttributes, UGenericGunAttributes::PrecisionName, EGameplayEffectAttributeCaptureSource::Source, false));
-	
+
 	UFUNCTION(BlueprintOverride)
 	void Execute(FGameplayEffectCustomExecutionParameters ExecutionParams,
 				 FGameplayEffectCustomExecutionOutput& OutExecutionOutput) const
@@ -26,15 +26,20 @@ class UGEXC_SixShooterHawkmonCalculation : UGEXC_DamageCalculationBase
 		float PrecisionHits = ExecutionParams.OwningSpec.GetSetByCallerMagnitude(GameplayTags::SetByCaller_PrecisionHits, true, 0);
 		const float HAWKMOON_FACTOR = 0.25f;
 
-		float Damage = IsPrecisionHit ? RawDamage * PrecisionMult : RawDamage; 
+		float Damage = IsPrecisionHit ? RawDamage * PrecisionMult : RawDamage;
 
 		float HawkmoonExpression = (1 + (PrecisionHits * HAWKMOON_FACTOR));
 		float HawkmoonDamage = Damage * HawkmoonExpression;
 
 		PrintFromObject(this, f"{HawkmoonDamage=}", 2.5f, FLinearColor::Red);
 
-		FDamageResult Result = CalculateDamageDistribution(HawkmoonDamage, false, 0, GetHealthMagnitude(ExecutionParams), GetShieldMagnitude(ExecutionParams));
-		OutExecutionOutput.ApplyGenericDamage(Result, this);
+		FDamageResult Result = CalculateDamageDistribution(HawkmoonDamage,
+														   false,
+														   0,
+														   GetHealthMagnitude(ExecutionParams, EGameplayEffectTargetType::Enemy),
+														   GetShieldMagnitude(ExecutionParams, EGameplayEffectTargetType::Enemy));
+
+		OutExecutionOutput.ApplyGenericDamage(EGameplayEffectTargetType::Enemy, Result, this);
 	}
 }
 

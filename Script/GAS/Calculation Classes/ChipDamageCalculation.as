@@ -1,5 +1,6 @@
 /**
  * Deals chip damage to health based on the coefficient of armor resistance (default = 0.66).
+ * @note DOES NOT WORK AGAINST PLAYERS!!
  */
 class UGEXC_ChipDamageCalculation : UGEXC_DamageCalculationBase
 {
