@@ -1,21 +1,21 @@
-namespace URailgunAttributres
+namespace UBaptoadAttributes
 {
-	const FName ChargeName = n"Charge";
-	const FName TimeToFullChargeName = n"TimeToFullCharge";
+	const FName DamageRoundsName = n"DamageRounds";
+	const FName HealingRoundsName = n"HealingRounds";
 }
 
-class URailgunAttributres : UAngelscriptAttributeSet
+class UBaptoadAttributes : UAngelscriptAttributeSet
 {
 	UPROPERTY(BlueprintReadOnly)
-	FAngelscriptGameplayAttributeData Charge;
+	FAngelscriptGameplayAttributeData DamageRounds;
 
-	UPROPERTY(BlueprintReadOnly)
-	FAngelscriptGameplayAttributeData TimeToFullCharge;
+    UPROPERTY(BlueprintReadOnly)
+	FAngelscriptGameplayAttributeData HealingRounds;
 
-	URailgunAttributres()
+	UBaptoadAttributes()
 	{
-		Charge.Initialize(0.f);
-		TimeToFullCharge.Initialize(2.5f);
+		DamageRounds.Initialize(6);
+		HealingRounds.Initialize(6);
 	}
 
 	// ORDER OF EXECUTION AND RESPONSIBILITY
@@ -27,16 +27,12 @@ class URailgunAttributres : UAngelscriptAttributeSet
 	UFUNCTION(BlueprintOverride)
 	void PreAttributeChange(FGameplayAttribute Attribute, float32& NewValue)
 	{
-		if (Attribute.AttributeName == URailgunAttributres::ChargeName)
-		{
-			NewValue = Math::Clamp(NewValue, 0.f, 100.f);
-		}
 	}
 
 	UFUNCTION(BlueprintOverride)
 	void PostAttributeChange(FGameplayAttribute Attribute, float OldValue, float NewValue)
 	{
-		//Print(f"Charge: {NewValue}", 1.0f);
+		//Print(f"Precision Hits: {NewValue}", 1.0f);
 	}
 
 	UFUNCTION(BlueprintOverride)
@@ -44,7 +40,7 @@ class URailgunAttributres : UAngelscriptAttributeSet
 								   FGameplayModifierEvaluatedData& EvaluatedData,
 								   UAngelscriptAbilitySystemComponent AbilitySystemComponent)
 	{
-		if (EvaluatedData.Attribute.AttributeName == URailgunAttributres::ChargeName)
+		if (EvaluatedData.Attribute.AttributeName == UBaptoadAttributes::DamageRoundsName)
 		{
 
 		}

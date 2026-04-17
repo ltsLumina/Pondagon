@@ -1,21 +1,16 @@
-namespace URailgunAttributres
+namespace ULMGAttributes
 {
-	const FName ChargeName = n"Charge";
-	const FName TimeToFullChargeName = n"TimeToFullCharge";
+	const FName BarrierHealthName = n"BarrierHealth";
 }
 
-class URailgunAttributres : UAngelscriptAttributeSet
+class ULMGAttributes : UAngelscriptAttributeSet
 {
 	UPROPERTY(BlueprintReadOnly)
-	FAngelscriptGameplayAttributeData Charge;
+	FAngelscriptGameplayAttributeData BarrierHealth;
 
-	UPROPERTY(BlueprintReadOnly)
-	FAngelscriptGameplayAttributeData TimeToFullCharge;
-
-	URailgunAttributres()
+	ULMGAttributes()
 	{
-		Charge.Initialize(0.f);
-		TimeToFullCharge.Initialize(2.5f);
+		BarrierHealth.Initialize(0);
 	}
 
 	// ORDER OF EXECUTION AND RESPONSIBILITY
@@ -27,16 +22,12 @@ class URailgunAttributres : UAngelscriptAttributeSet
 	UFUNCTION(BlueprintOverride)
 	void PreAttributeChange(FGameplayAttribute Attribute, float32& NewValue)
 	{
-		if (Attribute.AttributeName == URailgunAttributres::ChargeName)
-		{
-			NewValue = Math::Clamp(NewValue, 0.f, 100.f);
-		}
 	}
 
 	UFUNCTION(BlueprintOverride)
 	void PostAttributeChange(FGameplayAttribute Attribute, float OldValue, float NewValue)
 	{
-		//Print(f"Charge: {NewValue}", 1.0f);
+		//Print(f"Precision Hits: {NewValue}", 1.0f);
 	}
 
 	UFUNCTION(BlueprintOverride)
@@ -44,9 +35,9 @@ class URailgunAttributres : UAngelscriptAttributeSet
 								   FGameplayModifierEvaluatedData& EvaluatedData,
 								   UAngelscriptAbilitySystemComponent AbilitySystemComponent)
 	{
-		if (EvaluatedData.Attribute.AttributeName == URailgunAttributres::ChargeName)
+		if (EvaluatedData.Attribute.AttributeName == ULMGAttributes::BarrierHealthName)
 		{
-
+            
 		}
 	}
 
