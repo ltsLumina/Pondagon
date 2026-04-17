@@ -24,6 +24,38 @@ class AScriptPondHero : AScriptPondCharacter
 	default GunComponent = UGunComponent::Get(this);
 	//~Components
 
+	UPROPERTY(Category = "Input | Sensitivity", BlueprintReadOnly, Meta = (Units="x"))
+	FVector2D Sensitivity = FVector2D(1,1);
+
+	UFUNCTION()
+	void SetSensitivity(FVector2D NewSensitivity)
+	{
+		Sensitivity = NewSensitivity;
+	}
+
+	FVector2D PreviousSens;
+
+	UFUNCTION(Category = "Input | Sensitivity")
+	void AdjustSensitivity(float Multiplier)
+	{
+		PreviousSens = Sensitivity;
+		Sensitivity *= Multiplier;
+	}
+
+	UFUNCTION(Category = "Input | Sensitivity")
+	void AdjustSensitivityAxis(float XMultiplier, float YMultiplier)
+	{
+		PreviousSens = Sensitivity;
+		Sensitivity.X *= XMultiplier;
+		Sensitivity.Y *= YMultiplier;
+	}
+
+	UFUNCTION(Category = "Input | Sensitivity")
+	void RestoreSensitivity()
+	{
+		Sensitivity = PreviousSens;
+	}
+
 	UFUNCTION(BlueprintPure)
 	EPondMovementState ResolveMovementState()
 	{

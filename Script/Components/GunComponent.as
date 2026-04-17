@@ -1,10 +1,13 @@
 namespace UGunComponent
 {
-	const float TRACE_DISTANCE = 10000.0f;
+	const float TRACE_DISTANCE = 10000;
+}
 
-	const int FIRE_INPUTID = 0;
-	const int ALT_FIRE_INPUTID = 1;
-	const int RELOAD_INPUTID = 2;
+enum EGASInputID
+{
+	Shoot = 0,
+	AltFire = 1,
+	Reload = 2,
 }
 
 enum EFireMode
@@ -97,8 +100,8 @@ class UGunComponent : UActorComponent
 	UFUNCTION(BlueprintPure)
 	UWeaponDefinition GetWeaponDefinition() property
 	{
-		if (CurrentGun == nullptr) return nullptr;
-		return CurrentGun.WeaponDefinition;
+		auto HeroDefinition = Cast<UHeroDefinition>(OwningHero.Definition);
+		return HeroDefinition.WeaponDefinition;
 	}
 
 	UPROPERTY(NotVisible, BlueprintReadOnly)
@@ -162,18 +165,6 @@ class UGunComponent : UActorComponent
 	}
 
 	/**
-	 * Whether the first shot after a pause is perfectly accurate (no recoil).
-	 */
-	UPROPERTY(Category = "Gun | Shooting", VisibleInstanceOnly, BlueprintReadOnly, BlueprintGetter = "GetIsFirstShotAccurate")
-	protected bool IsFirstShotAccurate;
-
-	UFUNCTION(Category = "Gun | Shooting", BlueprintPure)
-	bool GetIsFirstShotAccurate()
-	{
-		return TimeSinceLastShot > 1.0 && BulletIndex == 0;
-	}
-
-	/**
 	 * The current index in the recoil pattern. This increments with each shot fired.
 	 * It is used to determine the recoil offset applied to the gun.
 	 */
@@ -183,7 +174,12 @@ class UGunComponent : UActorComponent
 	UFUNCTION(BlueprintPure, Category = "Gun | Accuracy")
 	bool IsBulletProtected(EPondMovementState MovementState)
 	{
-		return BulletIndex < WeaponDefinition.ProtectedBullets && MovementState == EPondMovementState::Still && CanFireProtectedBullet;
+		bool IsInProtectedRange = BulletIndex < WeaponDefinition.ProtectedBullets;
+		bool IsStill = MovementState == EPondMovementState::Still;
+		bool PastStillThreshold = OwningHero.TimeSinceMoving > 0.45f;
+		bool PastShootThreshold = TimeSinceLastShot > 0.75;
+
+		return IsInProtectedRange && IsStill && (PastStillThreshold || PastShootThreshold);
 	}
 
 	UPROPERTY(Category = "Gun | Accuracy", VisibleInstanceOnly)
@@ -199,15 +195,24 @@ class UGunComponent : UActorComponent
 
 	// - Events
 
-	void Initialize()
+	UAngelscriptAbilitySystemComponent ASC;
+
+	UFUNCTION(BlueprintOverride)
+	void BeginPlay()
 	{
 		OwningHero = Cast<AScriptPondHero>(GetOwner());
+	}
+
+	void Initialize()
+	{
 		ComponentTickEnabled = true; // need to defer tick until owning hero is init'd.
 
 		GenericGunAttributes = OwningHero.AbilitySystem.GetAttributeSet(UGenericGunAttributes);
 
+		ASC = AbilitySystem::GetAngelscriptAbilitySystemComponent(GetOwner());
+
 		if (GetOwner().HasAuthority())
-			GrantAbilities(OwningHero.AbilitySystem);
+			AuthGrantAbilities(ASC);
 
 		OnInitialize();
 	}
@@ -217,15 +222,15 @@ class UGunComponent : UActorComponent
 	{}
 
 	UFUNCTION(BlueprintAuthorityOnly)
-	void GrantAbilities(UAbilitySystemComponent ASC)
+	void AuthGrantAbilities(UAbilitySystemComponent InASC)
 	{
-		ASC.GiveAbility(WeaponDefinition.ShootGameplayAbility, 0, UGunComponent::FIRE_INPUTID);
-		ASC.GiveAbility(WeaponDefinition.AltFireGameplayAbility, 0, UGunComponent::ALT_FIRE_INPUTID);
-		ASC.GiveAbility(WeaponDefinition.ReloadGameplayAbility, 0, UGunComponent::RELOAD_INPUTID);
+		InASC.GiveAbility(WeaponDefinition.ShootGameplayAbility, 0, int(EGASInputID::Shoot));
+		InASC.GiveAbility(WeaponDefinition.AltFireGameplayAbility, 0, int(EGASInputID::AltFire));
+		InASC.GiveAbility(WeaponDefinition.ReloadGameplayAbility, 0, int(EGASInputID::Reload));
 
 		for (auto& Enchant : CurrentGun.Enchantments)
 		{
-			ASC.GiveAbility(Enchant);
+			InASC.GiveAbility(Enchant);
 		}
 	}
 
@@ -259,12 +264,6 @@ class UGunComponent : UActorComponent
 		// Build an orthonormal basis around AimDirection
 		FVector Right = FVector::UpVector.CrossProduct(AimDirection).GetSafeNormal();
 		FVector Up = AimDirection.CrossProduct(Right).GetSafeNormal();
-
-		if (IsBulletProtected(OwningHero.ResolveMovementState()))
-		{
-			FVector SpreadDirSansSpread = (AimDirection).GetSafeNormal();
-			return SpreadDirSansSpread;
-		}
 
 		// Apply spread offset
 		FVector SpreadDir = (AimDirection + Right * OffsetX + Up * OffsetY).GetSafeNormal();
@@ -310,46 +309,62 @@ class UGunComponent : UActorComponent
 		return TargetPoint;
 	}
 
+	float Spread = 0;
+
 	UFUNCTION(BlueprintPure, Category = "Gun | Accuracy")
 	float GetSpread(EPondMovementState MovementState)
 	{
-		float Spread = 0;
+		UCurveFloat Curve = WeaponDefinition.SpreadCurve != nullptr ? WeaponDefinition.SpreadCurve : LinearSpreadCurve;
+
+		bool IsProtected = IsBulletProtected(MovementState);
 
 		bool IsCrouched = MovementState == EPondMovementState::Crouch || MovementState == EPondMovementState::CrouchWalk;
+		float FirstShotSpread = IsCrouched ? WeaponDefinition.CrouchSpread : WeaponDefinition.StandingSpread;
 		float MaxSpread = IsCrouched ? WeaponDefinition.CrouchMaxSpread : WeaponDefinition.StandingMaxSpread;
 
-		float Time = (1 + BulletIndex) / float(WeaponDefinition.MaxSpreadBullet);
-		float Value = WeaponDefinition.SpreadCurve.GetFloatValue(Time);
-
-		Spread += Math::Clamp(Value, 0, MaxSpread);
-
-		float Penalty = 0;
-
-		switch (MovementState)
+		if (!IsProtected)
 		{
-			case EPondMovementState::Airborne:
-				Penalty = WeaponDefinition.AirbornePenalty;
-				break;
-			case EPondMovementState::Run:
-				Penalty = WeaponDefinition.RunPenalty;
-				break;
-			case EPondMovementState::Walk:
-				Penalty = WeaponDefinition.WalkPenalty;
-				break;
-			case EPondMovementState::CrouchWalk:
-				Penalty = WeaponDefinition.CrouchPenalty;
-				break;
+			float Time = (1 + BulletIndex) / float(WeaponDefinition.MaxSpreadBullet);
+			float Value = Curve.GetFloatValue(Time);
+			Value = Math::Clamp(Value, 0, 1);
+			Spread += Value;
 
-			default:
-				break;
+			if (BulletIndex == 0)
+				Spread += FirstShotSpread;
+
+			float Penalty = 0;
+
+			switch (MovementState)
+			{
+				case EPondMovementState::Airborne:
+					Penalty = WeaponDefinition.AirbornePenalty;
+					break;
+				case EPondMovementState::Run:
+					Penalty = WeaponDefinition.RunPenalty;
+					break;
+				case EPondMovementState::Walk:
+					Penalty = WeaponDefinition.WalkPenalty;
+					break;
+				case EPondMovementState::CrouchWalk:
+					Penalty = WeaponDefinition.CrouchPenalty;
+					break;
+
+				default:
+					break;
+			}
+
+			Spread += Penalty;
+		}
+		else
+		{
+			// protected bullet is slightly tighter
+			Spread = FirstShotSpread * 0.5f;
 		}
 
-		Spread += Penalty;
+		Spread = Math::Clamp(Spread, 0, MaxSpread);
 
 		if (PrintSpreadInfo)
 		{
-			bool IsProtected = IsBulletProtected(MovementState);
-			Spread = IsProtected ? WeaponDefinition.StandingSpread : Spread;
 			FString ProtectedSuffix = IsProtected ? "(Protected)" : "";
 			Print(f"{Spread=}° degrees {ProtectedSuffix}", 1, FLinearColor(0.5, 0.5, 1.0));
 		}
@@ -555,7 +570,6 @@ class UGunComponent : UActorComponent
 		Payload.Target = LastHit.Actor;
 		Payload.TargetData = AbilitySystem::AbilityTargetDataFromHitResult(LastHit);
 
-		auto ASC = AbilitySystem::GetAngelscriptAbilitySystemComponent(OwningHero.PlayerState);
 		ASC.SendGameplayEvent(GameplayTags::Enchantment_Trigger_OnShot, Payload);
 
 		ShootSFX();
@@ -604,7 +618,8 @@ class UGunComponent : UActorComponent
 		if (!(GetOwner().AsPawn()).IsLocallyControlled())
 			return;
 
-		if (!DrawLines) return;
+		if (!DrawLines)
+			return;
 
 		FHitResult DummyHit;
 		System::LineTraceSingle(
@@ -626,7 +641,8 @@ class UGunComponent : UActorComponent
 		if (!(GetOwner().AsPawn()).IsLocallyControlled())
 			return;
 
-		if (!DrawLines) return;
+		if (!DrawLines)
+			return;
 
 		FHitResult DummyHit;
 		System::LineTraceSingle(
@@ -645,7 +661,6 @@ class UGunComponent : UActorComponent
 
 	void InvokeEnchantment(TSubclassOf<UEnchantment> EnchantClass)
 	{
-		auto ASC = AbilitySystem::GetAbilitySystemComponent(OwningHero.PlayerState);
 		auto Spec = FGameplayAbilitySpec(EnchantClass, 1, -1, nullptr);
 		ASC.GiveAbilityAndActivateOnceWithEventData(Spec, FGameplayEventData());
 		Log(f"Activating {EnchantClass.DefaultObject.DisplayName}");
@@ -719,21 +734,16 @@ class UGunComponent : UActorComponent
 		this.ElapsedTime = InElapsedTime;
 		this.TriggeredTime = InTriggeredTime;
 
-		auto ASC = AbilitySystem::GetAngelscriptAbilitySystemComponent(OwningHero.PlayerState);
 		ASC.TryActivateAbilityByClass(WeaponDefinition.ShootGameplayAbility);
 	}
 
 	UFUNCTION(NotBlueprintCallable)
 	private void Interim_AltFire(FInputActionValue ActionValue, float32 InElapsedTime,
-					   float32 InTriggeredTime, const UInputAction SourceAction)
+						 float32 InTriggeredTime, const UInputAction SourceAction)
 	{
 		this.ElapsedTime = InElapsedTime;
 		this.TriggeredTime = InTriggeredTime;
-
-		
 	}
-
-	bool CanFireProtectedBullet = true;
 
 	/**
 	 * Generic shoot function.
@@ -749,8 +759,6 @@ class UGunComponent : UActorComponent
 
 		// Assumes player has not fired for a while, reset bullet index
 		BulletIndex = TimeSinceLastShot > 0.4f ? 0 : BulletIndex;
-
-		CanFireProtectedBullet = OwningHero.TimeSinceMoving > 1.25f;
 
 		switch (WeaponDefinition.FireMode)
 		{
@@ -841,6 +849,7 @@ class UGunComponent : UActorComponent
 		{
 			Camera.FieldOfView = TargetFOV;
 			HasStartedZooming = false;
+			PreAimDownSightsFOV = 0;
 		}
 	}
 
@@ -852,38 +861,67 @@ class UGunComponent : UActorComponent
 			return;
 
 		auto Camera = UCameraComponent::Get(GetOwner());
-		if (IsValid(Camera))
+		if (IsValid(Camera) && PreAimDownSightsFOV <= 0.0f)
 			PreAimDownSightsFOV = Camera.FieldOfView;
 		HasStartedZooming = false;
 
 		IsAltMode = true;
 		UPondCharacterMovementComponent::Get(GetOwner()).StartAimDownSights();
+		OwningHero.AdjustSensitivity(0.1f);
 
-		auto ASC = AbilitySystem::GetAngelscriptAbilitySystemComponent(OwningHero.PlayerState);
 		ASC.TryActivateAbilityByClass(WeaponDefinition.AltFireGameplayAbility);
+		ASC.PressInputID(int(EGASInputID::AltFire));
 	}
 
 	UFUNCTION(NotBlueprintCallable)
 	private void EndAimDownSights(FInputActionValue ActionValue, float32 InElapsedTime, float32 InTriggeredTime,
-				const UInputAction SourceAction)
+						  const UInputAction SourceAction)
 	{
 		if (!IsAltMode)
 			return;
 
 		HasStartedZooming = false;
+		if (PreAimDownSightsFOV > 0.0f)
+			TargetFOV = PreAimDownSightsFOV;
 
 		IsAltMode = false;
 		UPondCharacterMovementComponent::Get(GetOwner()).StopAimDownSights();
+		OwningHero.RestoreSensitivity();
 
-		auto ASC = AbilitySystem::GetAngelscriptAbilitySystemComponent(OwningHero.PlayerState);
-		ASC.ReleaseInputID(69);
+		ASC.ReleaseInputID(int(EGASInputID::AltFire));
 	}
 
 	UFUNCTION(NotBlueprintCallable)
 	private void Interim_Reload(FInputActionValue ActionValue, float32 InElapsedTime,
 						float32 InTriggeredTime, const UInputAction SourceAction)
 	{
-		auto ASC = AbilitySystem::GetAbilitySystemComponent(OwningHero.PlayerState);
 		ASC.TryActivateAbilityByClass(WeaponDefinition.ReloadGameplayAbility);
 	}
 };
+
+asset LinearSpreadCurve of UCurveFloat
+{
+	/*
+		------------------------------------------------------------------
+	1.0 |                                                            .·''|
+		|                                                        .·''    |
+		|                                                    .·''        |
+		|                                                .·''            |
+		|                                            .·''                |
+		|                                        .·''                    |
+		|                                    .··'                        |
+		|                                .··'                            |
+		|                            .··'                                |
+		|                        .··'                                    |
+		|                    .··'                                        |
+		|                ..·'                                            |
+		|            ..·'                                                |
+		|        ..·'                                                    |
+		|    ..·'                                                        |
+	0.0 |..·'                                                            |
+		------------------------------------------------------------------
+		-0.3                                                           1.0
+	*/
+	AddLinearCurveKey(-0.3, 0.0);
+	AddLinearCurveKey(1.0, 1.0);
+}

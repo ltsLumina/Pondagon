@@ -34,17 +34,6 @@ class UWeaponDefinition : UPrimaryDataAsset
 	UPROPERTY(Category = "Gun | Shooting", EditDefaultsOnly)
 	EFireMode FireMode = EFireMode::Auto;
 
-	/**
-	 * The attribute set that contains all attributes for this gun specifically.
-	 * For example, the Six Shooter gun uses the USixShooterAttributes attribute set.
-	 * @note Do not input the generic attributes here. That set is automatically added by default.
-	 */
-	UPROPERTY(Category = "Gun | GAS", EditDefaultsOnly, BlueprintReadOnly)
-	TSubclassOf<UAngelscriptAttributeSet> AttributeSet;
-
-	UPROPERTY(Category = "Gun | GAS", EditDefaultsOnly, BlueprintReadOnly)
-	UDataTable AttributeSetDefaultStartingData;
-
 	UPROPERTY(Category = "Gun | GAS", EditDefaultsOnly, BlueprintReadOnly)
 	TSubclassOf<UGameplayAbility> ShootGameplayAbility;
 
@@ -89,9 +78,12 @@ class UWeaponDefinition : UPrimaryDataAsset
 	float AirbornePenalty = 10;
 	UPROPERTY(Category = "Gun | Accuracy | Penalties", EditDefaultsOnly, Meta = (Units = "Degrees"))
 	float RunPenalty = 6;
-	UPROPERTY(Category = "Gun | Accuracy | Penalties", EditDefaultsOnly, Meta = (Units = "Degrees"))
+
+	/** DEPRECATED */
+	UPROPERTY(Category = "Gun | Accuracy | Penalties", NotVisible, Meta = (Units = "Degrees"))
 	float WalkPenalty = 3;
-	UPROPERTY(Category = "Gun | Accuracy | Penalties", EditDefaultsOnly, Meta = (Units = "Degrees"))
+	/** DEPRECATED */
+	UPROPERTY(Category = "Gun | Accuracy | Penalties", NotVisible, Meta = (Units = "Degrees"))
 	float CrouchPenalty = 1.5f;
 
 	// - recoil

@@ -1,13 +1,14 @@
+UCLASS(Meta=(PrioritizeCategories="Entity | Details"))
 class UEntityDefinition : UDataAsset
 {
     UPROPERTY(Category = "Entity | Details", EditDefaultsOnly, BlueprintReadOnly)
 	FText EntityName;
 	default EntityName = FText::FromString("Entity");
 
-	UPROPERTY(Category = "Entity | Details", Meta=(EditFixedOrder))
+	UPROPERTY(Category = "Entity | GAS", Meta=(EditFixedOrder))
     TMap<TSubclassOf<UAngelscriptAttributeSet>, UDataTable> StartingData;
 
-	UPROPERTY(Category = "Entity | Details", Meta=(EditFixedOrder))
+	UPROPERTY(Category = "Entity | GAS", Meta=(EditFixedOrder))
     TArray<TSubclassOf<UAngelscriptGameplayAbility>> StartingAbilities;
 
 	UFUNCTION(Category = "Debug", CallInEditor, DisplayName = "Make Player Definition")
