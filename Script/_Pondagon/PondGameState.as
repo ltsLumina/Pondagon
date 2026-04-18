@@ -1,5 +1,8 @@
 class APondGameState : AGameState
 {
+    UPROPERTY(Category = "Players", Replicated)
+    TArray<FPlayerSelectionData> PlayerSelections;
+    
     UPROPERTY(Category = "Run")
     UDataTable EnchantmentsPool;
 
@@ -44,6 +47,15 @@ struct FSeededRunData
         Seed = InSeed;
         PossibleEnchantments = InEnchantments;
     }
+}
+
+struct FPlayerSelectionData
+{
+    UPROPERTY(BlueprintReadOnly)
+    APlayerState PlayerState;
+
+    UPROPERTY(BlueprintReadOnly)
+    FString SelectedHero;
 }
 
 namespace Pond

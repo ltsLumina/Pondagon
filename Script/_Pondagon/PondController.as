@@ -1,18 +1,18 @@
 class AScriptPondController : APondPlayerController
 {
-    UPROPERTY(Category = "Input | Mapping Context", DefaultComponent, NotVisible, BlueprintReadOnly)
+	UPROPERTY(Category = "Input | Mapping Context", DefaultComponent, NotVisible, BlueprintReadOnly)
 	UEnhancedInputComponent InputComponent;
-    
-    UPROPERTY(Category = "Input | Mapping Context")
+
+	UPROPERTY(Category = "Input | Mapping Context")
 	UInputMappingContext IMC_Default;
 
-    UPROPERTY(Category = "Input | Mapping Context")
+	UPROPERTY(Category = "Input | Mapping Context")
 	UInputMappingContext IMC_MouseLook;
 
-    UPROPERTY(Category = "Input | Mapping Context")
+	UPROPERTY(Category = "Input | Mapping Context")
 	UInputMappingContext IMC_Weapons;
-    
-    UPROPERTY(Category = "Input | Actions | Movement")
+
+	UPROPERTY(Category = "Input | Actions | Movement")
 	UInputAction MoveAction;
 
 	UPROPERTY(Category = "Input | Actions | Movement")
@@ -30,8 +30,37 @@ class AScriptPondController : APondPlayerController
 	UPROPERTY(Category = "Input | Actions | Guns")
 	UInputAction ADS_Action;
 
-    UPROPERTY(Category = "Input | Actions | Guns")
+	UPROPERTY(Category = "Input | Actions | Guns")
 	UInputAction ReloadAction;
+
+	UFUNCTION(BlueprintOverride)
+	void OnPossess(APawn InPawn) // BeginPlay runs too early.
+	{
+		InitPlayerSelections();
+	}
+
+	UFUNCTION(Server)
+	void InitPlayerSelections()
+	{
+		auto GS = Pond::GetPondGameStateBase();
+		for (int i = 0; i < GS.PlayerArray.Num(); i++)
+		{
+			GS.PlayerSelections.Add(FPlayerSelectionData());
+		}
+	}
+
+	UFUNCTION(Server)
+	void SetHero(FString HeroName)
+	{
+		auto GS = Pond::GetPondGameStateBase();
+
+		FPlayerSelectionData Data;
+		Data.PlayerState = PlayerState;
+		Data.SelectedHero = HeroName;
+
+		int i = GS.PlayerArray.FindIndex(PlayerState);
+		GS.PlayerSelections[i] = Data;
+	}
 
 	bool HasInitialized;
 
@@ -44,43 +73,43 @@ class AScriptPondController : APondPlayerController
 			HasInitialized = true;
 		}
 	}
-	
-    void Initialize()
-    {
-        PushInputComponent(InputComponent);
+
+	void Initialize()
+	{
+		PushInputComponent(InputComponent);
 
 		UEnhancedInputLocalPlayerSubsystem EnhancedInputSubsystem = UEnhancedInputLocalPlayerSubsystem::Get(this);
 		EnhancedInputSubsystem.AddMappingContext(IMC_Default, 1, FModifyContextOptions());
-        EnhancedInputSubsystem.AddMappingContext(IMC_MouseLook, 1, FModifyContextOptions());
-        EnhancedInputSubsystem.AddMappingContext(IMC_Weapons, 0, FModifyContextOptions());
+		EnhancedInputSubsystem.AddMappingContext(IMC_MouseLook, 1, FModifyContextOptions());
+		EnhancedInputSubsystem.AddMappingContext(IMC_Weapons, 0, FModifyContextOptions());
 
-        SubscribeInputEvents();
+		SubscribeInputEvents();
 
 		HandleMovementStates();
-    }
+	}
 
-    void SubscribeInputEvents()
-    {
+	void SubscribeInputEvents()
+	{
 		auto Hero = Cast<AScriptPondHero>(ControlledPawn);
 
 		InputComponent.BindAction(SprintAction, ETriggerEvent::Started, FEnhancedInputActionHandlerDynamicSignature(Hero, n"StartSprinting"));
 		InputComponent.BindAction(SprintAction, ETriggerEvent::Completed, FEnhancedInputActionHandlerDynamicSignature(Hero, n"StopSprinting"));
-		
-        auto GunComponent = UGunComponent::Get(ControlledPawn);
-        
-        // Shooting
+
+		auto GunComponent = UGunComponent::Get(ControlledPawn);
+
+		// Shooting
 		InputComponent.BindAction(ShootAction, ETriggerEvent::Triggered, FEnhancedInputActionHandlerDynamicSignature(GunComponent, n"Interim_Shoot"));
 
 		// ADS (Aim Down Sights)
 		InputComponent.BindAction(ADS_Action, ETriggerEvent::Started, FEnhancedInputActionHandlerDynamicSignature(GunComponent, n"StartAimDownSights"));
 		InputComponent.BindAction(ADS_Action, ETriggerEvent::Started, FEnhancedInputActionHandlerDynamicSignature(GunComponent, n"Interim_AltFire"));
-		//InputComponent.BindAction(ADS_Action, ETriggerEvent::Canceled, FEnhancedInputActionHandlerDynamicSignature(GunComponent, n"CancelledADS"));
-		//InputComponent.BindAction(ADS_Action, ETriggerEvent::Triggered, FEnhancedInputActionHandlerDynamicSignature(GunComponent, n"TriggeredADS"));
+		// InputComponent.BindAction(ADS_Action, ETriggerEvent::Canceled, FEnhancedInputActionHandlerDynamicSignature(GunComponent, n"CancelledADS"));
+		// InputComponent.BindAction(ADS_Action, ETriggerEvent::Triggered, FEnhancedInputActionHandlerDynamicSignature(GunComponent, n"TriggeredADS"));
 		InputComponent.BindAction(ADS_Action, ETriggerEvent::Completed, FEnhancedInputActionHandlerDynamicSignature(GunComponent, n"EndAimDownSights"));
 
 		// Reloading
 		InputComponent.BindAction(ReloadAction, ETriggerEvent::Triggered, FEnhancedInputActionHandlerDynamicSignature(GunComponent, n"Interim_Reload"));
-    }
+	}
 
 	void HandleMovementStates()
 	{
