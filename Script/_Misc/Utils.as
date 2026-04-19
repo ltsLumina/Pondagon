@@ -64,9 +64,9 @@ namespace Editor
 #endif
 	}
 
-	UFUNCTION(Category = "Editor", Meta = (ExpandBoolAsExecs = "ReturnValue", Keywords = "editor,pc,platform"), DisplayName = "Is Editor")
-	bool IsEditor_Expanded()
-	{
+	UFUNCTION(DisplayName = "Is Editor (branch)", Category = "Editor", Meta = (ExpandBoolAsExecs = "ReturnValue", Keywords = "editor,pc,platform"))
+	bool IsEditor_Branch()
+	{	
 #if EDITOR
 		return true;
 #else
@@ -75,18 +75,23 @@ namespace Editor
 	}
 }
 
-/* -- ACTOR MIXINS -- */
-
-mixin APawn CastToPawn(AActor Actor)
+namespace AController
 {
-	auto Result = Cast<APawn>(Actor);
-	ThrowIf(Result == nullptr, f"Cast from {Actor.GetName()} to {APawn.DefaultObject.GetName()} failed!");
-	return Result;
+	/**
+	 * Returns whether this Controller is a local controller.
+	 */
+	UFUNCTION(DisplayName = "Is Local Controller (branch)", Category = "Pawn", Meta = (ExpandBoolAsExecs="ReturnValue"))
+	mixin bool IsLocalController(AController Controller)
+	{
+		return Controller.IsLocalController();
+	}
 }
+
+/* -- ACTOR MIXINS -- */
 
 mixin APawn AsPawn(AActor Actor)
 {
 	auto Result = Cast<APawn>(Actor);
-	ThrowIf(Result == nullptr, f"Cast from {Actor.GetName()} to {APawn.DefaultObject.GetName()} failed!");
+	ThrowIf(Result == nullptr, f"Cast from {Actor.GetName()} to Pawn failed!");
 	return Result;
 }
