@@ -15,13 +15,13 @@ class PENTAGONGAME_API APondPlayerController : public APlayerController
 	GENERATED_BODY()
 
 public:
+	virtual void OnPossess(APawn* InPawn) override;
 	/**
 	 * <summary>
 	 * Server-side possession. Use for server init that requires a pawn.
 	 * </summary>
 	 * <param name="InPawn"></param>
 	 */
-	virtual void OnPossess(APawn* InPawn) override;
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent)
 	void BP_OnPossess(APawn* InPawn);
 
@@ -35,12 +35,12 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent)
 	void BP_AcknowledgePossession(class APawn* P);
 
+	virtual void OnRep_PlayerState() override;
 	/**
 	 * <summary>
 	 * PlayerState arrives late — use as fallback alongside AcknowledgePossession.
 	 * </summary>
 	 */
-	virtual void OnRep_PlayerState() override;
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent)
 	void BP_OnRep_PlayerState();
 	
