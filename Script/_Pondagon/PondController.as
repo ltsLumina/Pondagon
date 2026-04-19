@@ -85,7 +85,9 @@ class AScriptPondController : APondPlayerController
 
 		SubscribeInputEvents();
 
-		HandleMovementStates();
+		SetupMovementStates();
+
+		SetupDebugInputs();
 	}
 
 	void SubscribeInputEvents()
@@ -111,7 +113,7 @@ class AScriptPondController : APondPlayerController
 		InputComponent.BindAction(ReloadAction, ETriggerEvent::Triggered, FEnhancedInputActionHandlerDynamicSignature(GunComponent, n"Interim_Reload"));
 	}
 
-	void HandleMovementStates()
+	void SetupMovementStates()
 	{
 		/*
 		AScriptPondHero Hero = Cast<AScriptPondHero>(ControlledPawn);
@@ -122,5 +124,27 @@ class AScriptPondController : APondPlayerController
 		InputComponent.BindAction(CrouchAction, ETriggerEvent::Completed, FEnhancedInputActionHandlerDynamicSignature(Hero, n"OnCrouch_Completed"));
 		InputComponent.BindAction(JumpAction, ETriggerEvent::Started, FEnhancedInputActionHandlerDynamicSignature(Hero, n"OnJump_Started"));
 		*/
+	}
+
+	void SetupDebugInputs()
+	{
+		InputComponent.BindKey(EKeys::RightShift, EInputEvent::IE_Pressed, FInputActionHandlerDynamicSignature(this, n"ExecuteConsoleCommand"));
+	}
+
+	bool ShowDebugEnabled;
+
+	UFUNCTION(NotBlueprintCallable)
+	private void ExecuteConsoleCommand(FKey Key)
+	{
+		if (ShowDebugEnabled)
+		{
+			System::ExecuteConsoleCommand("showdebug RESET", this);
+		}
+		else
+		{
+			System::ExecuteConsoleCommand("showdebug abilitysystem", this);
+		}
+
+		ShowDebugEnabled = !ShowDebugEnabled;
 	}
 };
