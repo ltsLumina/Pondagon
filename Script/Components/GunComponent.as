@@ -58,6 +58,12 @@ mixin FHitResult GetHitResult(FBulletHit BulletHit)
 {
 	return BulletHit.Hit;
 }
+
+UFUNCTION(BlueprintPure, Meta = (ReturnDisplayName = "Is Precision Hit"))
+mixin bool IsPrecisionHit(FHitResult Hit)
+{
+	return Hit.BoneName == n"Head";
+}
 // #endregion
 
 UCLASS(Meta = (PrioritizeCategories = "Debug"))
@@ -384,14 +390,13 @@ class UGunComponent : UActorComponent
 	 * - `MagnetizedPoint` Vector point that the `BulletMagnetism` stat 'pulled' the `SpreadPoint` toward, based on the `ErrorAngle` of the `SpreadPoint`.
 	 * - `FinalPoint`: The final point in space that the bullet will hit, accounting for `TargetPoint`, `SpreadPoint`, and `MagnetizedPoint` (if a target was hit by the magnetism capsule trace).
 	 */
-	void Fire()
+	void Fire(FHitResult&out Hit)
 	{
 		FVector TargetPoint = GetTargetPoint(UGunComponent::TRACE_DISTANCE);
 
 		float ConeExtents;
 		FVector SpreadPoint = GetSpreadPoint(TargetPoint, ConeExtents);
 
-		FHitResult Hit;
 		AActor TargetActor = SweepForTarget(Hit);
 		FVector MagnetizedPoint = GetMagnetizedPoint(TargetActor, Hit, SpreadPoint);
 
@@ -750,7 +755,7 @@ class UGunComponent : UActorComponent
 	 * TODO: May want to make this only fire on authority to prevent BulletIndex from being manipulated by the client.
 	 */
 	UFUNCTION()
-	bool Shoot()
+	bool Shoot(FHitResult&out Hit)
 	{
 		float FireRateAttribute = GenericGunAttributes.FireRate.CurrentValue;
 
@@ -783,7 +788,7 @@ class UGunComponent : UActorComponent
 			return false;
 		}
 
-		Fire();
+		Fire(Hit);
 
 		return true;
 	}
