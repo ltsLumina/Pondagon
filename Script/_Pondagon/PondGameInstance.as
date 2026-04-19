@@ -70,4 +70,14 @@ class UPondGameInstance : UAdvancedFriendsGameInstance
 	{
 		
 	}
+
+/* TODO: REPLACE EXISTING FUNCTIONS WITH THESE!
+	UFUNCTION(BlueprintEvent, BlueprintCallable)
+	void HostSession()
+	{}
+
+	UFUNCTION(BlueprintEvent, BlueprintCallable)
+	void FindSessions()
+	{}
+*/
 };
