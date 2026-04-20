@@ -76,8 +76,11 @@ class UGEXC_DamageCalculationBase : UGameplayEffectExecutionCalculation
 }
 
 mixin void
-ApplyGenericDamage(FGameplayEffectCustomExecutionOutput& OutExecutionOutput, EGameplayEffectTargetType Target, FDamageResult& Result, const UObject WorldContextObject = nullptr)
+ApplyGenericDamage(FGameplayEffectCustomExecutionOutput& OutExecutionOutput, FGameplayEffectCustomExecutionParameters ExecutionParams, EGameplayEffectTargetType Target, FDamageResult& Result, const UObject WorldContextObject = nullptr)
 {
+	auto TargetASC = Cast<UAngelscriptAbilitySystemComponent>(ExecutionParams.TargetAbilitySystemComponent);
+	if (IsValid(TargetASC) && TargetASC.HasGameplayTag(GameplayTags::Character_Buffs_Invulnerable)) return;
+	
 	if (Result.ShieldDamage > 0)
 	{
 		FGameplayAttribute ShieldAttribute;

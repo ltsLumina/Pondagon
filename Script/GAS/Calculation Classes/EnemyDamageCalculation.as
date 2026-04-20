@@ -18,6 +18,6 @@ class UGEXC_EnemyDamageCalculation : UGEXC_DamageCalculationBase
         float32 CurrentShield = GetShieldMagnitude(ExecutionParams, EGameplayEffectTargetType::Player, EGameplayEffectAttributeCaptureSource::Target);
 		FDamageResult Result = CalculateDamageDistribution(RawDamage, false, 0, CurrentHealth, CurrentShield);
 
-		OutExecutionOutput.ApplyGenericDamage(EGameplayEffectTargetType::Player, Result, this);
+		OutExecutionOutput.ApplyGenericDamage(ExecutionParams, EGameplayEffectTargetType::Player, Result, this);
 	}
 }
