@@ -17,46 +17,11 @@ enum EFireMode
 	Auto
 }
 
-struct FBulletHit
-{
-	UPROPERTY(BlueprintReadOnly)
-	AController Instigator;
-
-	UPROPERTY(BlueprintReadOnly)
-	AScriptEnemyBase HitEnemy;
-
-	UPROPERTY(BlueprintReadOnly)
-	float Damage;
-
-	UPROPERTY(BlueprintReadOnly)
-	bool IsShieldBreak;
-
-	UPROPERTY(BlueprintReadOnly)
-	bool IsPrecisionHit;
-
-	UPROPERTY(BlueprintReadOnly)
-	bool IsKill;
-
-	UPROPERTY(BlueprintReadOnly)
-	FHitResult Hit;
-
-	FBulletHit(AController InInstigator, AScriptEnemyBase InHitEnemy, float InDamage, bool InIsShieldBreak, bool InIsPrecisionKill, bool InIsKill, FHitResult InHitResult)
-	{
-		Instigator = InInstigator;
-		HitEnemy = InHitEnemy;
-		Damage = InDamage;
-		IsShieldBreak = InIsShieldBreak;
-		IsPrecisionHit = InIsPrecisionKill;
-		IsKill = InIsKill;
-		Hit = InHitResult;
-	}
-};
-
 // #region Mixin
-UFUNCTION(BlueprintPure, Meta = (ReturnDisplayName = "Hit Result"))
-mixin FHitResult GetHitResult(FBulletHit BulletHit)
+UFUNCTION(BlueprintPure, Meta = (ReturnDisplayName = "Is Precision Hit"))
+mixin bool IsPrecisionHit(FHitResult Hit)
 {
-	return BulletHit.Hit;
+	return Hit.BoneName == n"Head";
 }
 // #endregion
 
@@ -189,9 +154,6 @@ class UGunComponent : UActorComponent
 
 	UPROPERTY(Category = "Gun | Alt Fire", VisibleInstanceOnly, BlueprintReadOnly)
 	bool IsAltMode = false;
-
-	UPROPERTY(Category = "State", NotVisible, BlueprintReadOnly)
-	FBulletHit BulletHit;
 
 	// - Events
 
@@ -384,14 +346,13 @@ class UGunComponent : UActorComponent
 	 * - `MagnetizedPoint` Vector point that the `BulletMagnetism` stat 'pulled' the `SpreadPoint` toward, based on the `ErrorAngle` of the `SpreadPoint`.
 	 * - `FinalPoint`: The final point in space that the bullet will hit, accounting for `TargetPoint`, `SpreadPoint`, and `MagnetizedPoint` (if a target was hit by the magnetism capsule trace).
 	 */
-	void Fire()
+	void Fire(FHitResult&out Hit)
 	{
 		FVector TargetPoint = GetTargetPoint(UGunComponent::TRACE_DISTANCE);
 
 		float ConeExtents;
 		FVector SpreadPoint = GetSpreadPoint(TargetPoint, ConeExtents);
 
-		FHitResult Hit;
 		AActor TargetActor = SweepForTarget(Hit);
 		FVector MagnetizedPoint = GetMagnetizedPoint(TargetActor, Hit, SpreadPoint);
 
@@ -550,21 +511,10 @@ class UGunComponent : UActorComponent
 			Log("Trace did not hit anything!");
 			ShootSFX();
 
-			BulletHit = FBulletHit();
 			return;
 		}
 
 		FHitResult LastHit = Hits.Last();
-
-		auto Instigator = OwningHero.Controller;
-		auto HitEnemy = Cast<AScriptEnemyBase>(LastHit.Actor);
-		bool WasEnemyHit = IsValid(HitEnemy);
-
-		BulletHit = FBulletHit();
-		BulletHit.Instigator = Instigator;
-		BulletHit.Hit = LastHit;
-		BulletHit.IsPrecisionHit = WasEnemyHit && LastHit.BoneName == n"Head";
-		BulletHit.HitEnemy = HitEnemy;
 
 		Payload.Instigator = OwningHero.Controller;
 		Payload.Target = LastHit.Actor;
@@ -578,13 +528,11 @@ class UGunComponent : UActorComponent
 		bool Penetrated = false;
 		CreateImpactDecal(Penetrated);
 
-		if (BulletHit.HitEnemy != nullptr)
+		if (LastHit.Actor != nullptr)
 		{
-			float DamageAmount = BulletHit.Damage;
-
 			Gameplay::ApplyPointDamage(
-				BulletHit.HitEnemy,
-				DamageAmount,
+				LastHit.Actor,
+				-1,
 				FinalDir,
 				LastHit,
 				OwningHero.Controller,
@@ -667,35 +615,37 @@ class UGunComponent : UActorComponent
 	}
 
 	void ShootSFX()
-	{
+	{/*
 		if (CurrentAmmo > 0)
 			Gameplay::PlaySoundAtLocation(WeaponDefinition.ShootSound, GetOwner().ActorLocation, FRotator::ZeroRotator, 1.0f, 1.0f, 0.0f, WeaponDefinition.DefaultAttenuation);
-		// else
-		// Gameplay::PlaySoundAtLocation(DryFireSound, GetActorLocation(), FRotator::ZeroRotator, 0.6f, 0.8f, 0.0f, DefaultAttenuation);
+		else
+			Gameplay::PlaySoundAtLocation(DryFireSound, GetActorLocation(), FRotator::ZeroRotator, 0.6f, 0.8f, 0.0f, DefaultAttenuation);
+		*/
 	}
 
 	void HitSFX()
-	{
-		if (BulletHit.HitEnemy != nullptr && BulletHit.IsPrecisionHit)
-		{ /*
-			 if (Cast<AEnemyBase>(BulletHit.HitCharacter).Attributes.ShieldAttribute.CurrentValue > 0)
+	{ /*
+		 if (BulletHit.HitEnemy != nullptr && BulletHit.IsPrecisionHit)
+		 {
+			  if (Cast<AEnemyBase>(BulletHit.HitCharacter).Attributes.ShieldAttribute.CurrentValue > 0)
+			  {
+				  Gameplay::PlaySound2D(WeaponDefinition.HeadshotWithArmorSound);
+			  else
+			  }
 			 {
-				 Gameplay::PlaySound2D(WeaponDefinition.HeadshotWithArmorSound);
-			 else
-			 }*/
-			{
-				Gameplay::PlaySound2D(WeaponDefinition.HeadshotSound);
-			}
-		}
-		else if (BulletHit.HitEnemy != nullptr && !BulletHit.IsPrecisionHit)
-		{
-			Gameplay::PlaySound2D(WeaponDefinition.BodyshotSound);
-		}
-		else if (BulletHit.HitEnemy == nullptr)
-		{
-			float PitchMultiplier = Math::Clamp(1.0f - (BulletHit.Hit.Distance / 10000.0f), 0.75f, 1.0f); // Closer impacts sound higher pitched
-			Gameplay::PlaySoundAtLocation(WeaponDefinition.GroundHitSound, BulletHit.Hit.Location, FRotator::ZeroRotator, 1.0f, PitchMultiplier, 0.0f, WeaponDefinition.DefaultAttenuation);
-		}
+				 Gameplay::PlaySound2D(WeaponDefinition.HeadshotSound);
+			 }
+		 }
+		 else if (BulletHit.HitEnemy != nullptr && !BulletHit.IsPrecisionHit)
+		 {
+			 Gameplay::PlaySound2D(WeaponDefinition.BodyshotSound);
+		 }
+		 else if (BulletHit.HitEnemy == nullptr)
+		 {
+			 float PitchMultiplier = Math::Clamp(1.0f - (BulletHit.Hit.Distance / 10000.0f), 0.75f, 1.0f); // Closer impacts sound higher pitched
+			 Gameplay::PlaySoundAtLocation(WeaponDefinition.GroundHitSound, BulletHit.Hit.Location, FRotator::ZeroRotator, 1.0f, PitchMultiplier, 0.0f, WeaponDefinition.DefaultAttenuation);
+		 }
+		 */
 	}
 
 	void CreateImpactDecal(bool&out Penetrated)
@@ -750,7 +700,7 @@ class UGunComponent : UActorComponent
 	 * TODO: May want to make this only fire on authority to prevent BulletIndex from being manipulated by the client.
 	 */
 	UFUNCTION()
-	bool Shoot()
+	bool Shoot(FHitResult&out Hit)
 	{
 		float FireRateAttribute = GenericGunAttributes.FireRate.CurrentValue;
 
@@ -783,7 +733,7 @@ class UGunComponent : UActorComponent
 			return false;
 		}
 
-		Fire();
+		Fire(Hit);
 
 		return true;
 	}
