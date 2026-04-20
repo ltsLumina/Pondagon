@@ -124,6 +124,8 @@ class AScriptPondHero : AScriptPondCharacter
 	UFUNCTION(BlueprintOverride)
 	void Possessed(AController NewController)
 	{
+		Super::Possessed(NewController);
+
 		AScriptPondPlayerState PS = Cast<AScriptPondPlayerState>(PlayerState);
 		if (IsValid(PS))
 		{

@@ -11,6 +11,8 @@ class AScriptEnemyBase : AScriptPondCharacter
 	UFUNCTION(BlueprintOverride)
 	void Possessed(AController NewController)
 	{
+		Super::Possessed(NewController);
+		
 		check(!Definition.StartingData.IsEmpty());
 
 		Attributes = Cast<UEnemyAttributes>(AbilitySystem.RegisterAttributeSet(UEnemyAttributes));
