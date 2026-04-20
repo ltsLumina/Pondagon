@@ -141,10 +141,11 @@ class UGunComponent : UActorComponent
 	{
 		bool IsInProtectedRange = BulletIndex < WeaponDefinition.ProtectedBullets;
 		bool IsStill = MovementState == EPondMovementState::Still;
-		bool PastStillThreshold = OwningHero.TimeSinceMoving > 0.45f;
+		bool PastStillThreshold = OwningHero.TimeSinceMoving > 0.5f;
 		bool PastShootThreshold = TimeSinceLastShot > 0.75;
 
-		return IsInProtectedRange && IsStill && (PastStillThreshold || PastShootThreshold);
+		bool Result = IsInProtectedRange && IsStill && (PastStillThreshold && PastShootThreshold);
+		return Result;
 	}
 
 	UPROPERTY(Category = "Gun | Accuracy", VisibleInstanceOnly)
@@ -240,7 +241,7 @@ class UGunComponent : UActorComponent
 	FVector TraceStart;
 	FVector TraceEnd;
 
-	FVector GetTargetPoint(float MaxDistance = UGunComponent::TRACE_DISTANCE)
+	FVector GetTargetPoint(float MaxDistance = UGunComponent::TRACE_DISTANCE, float32&out Dist = 0.f)
 	{
 		FVector Location;
 		FRotator Rotation;
@@ -264,6 +265,8 @@ class UGunComponent : UActorComponent
 								FLinearColor::Red,
 								FLinearColor::Green,
 								DebugTraceDuration);
+
+		Dist = Hit.Distance;
 
 		Cosmetic_DrawDebugTargetPointTrace(TraceStart, TraceEnd, DebugTraceDuration);
 
@@ -293,29 +296,6 @@ class UGunComponent : UActorComponent
 
 			if (BulletIndex == 0)
 				Spread += FirstShotSpread;
-
-			float Penalty = 0;
-
-			switch (MovementState)
-			{
-				case EPondMovementState::Airborne:
-					Penalty = WeaponDefinition.AirbornePenalty;
-					break;
-				case EPondMovementState::Run:
-					Penalty = WeaponDefinition.RunPenalty;
-					break;
-				case EPondMovementState::Walk:
-					Penalty = WeaponDefinition.WalkPenalty;
-					break;
-				case EPondMovementState::CrouchWalk:
-					Penalty = WeaponDefinition.CrouchPenalty;
-					break;
-
-				default:
-					break;
-			}
-
-			Spread += Penalty;
 		}
 		else
 		{
@@ -323,7 +303,30 @@ class UGunComponent : UActorComponent
 			Spread = FirstShotSpread * 0.5f;
 		}
 
-		Spread = Math::Clamp(Spread, 0, MaxSpread);
+		float Penalty = 0;
+
+		switch (MovementState)
+		{
+			case EPondMovementState::Airborne:
+				Penalty = WeaponDefinition.AirbornePenalty;
+				break;
+			case EPondMovementState::Run:
+				Penalty = WeaponDefinition.RunPenalty;
+				break;
+			case EPondMovementState::Walk:
+				Penalty = WeaponDefinition.WalkPenalty;
+				break;
+			case EPondMovementState::CrouchWalk:
+				Penalty = WeaponDefinition.CrouchPenalty;
+				break;
+
+			default:
+				break;
+		}
+
+		Spread += Penalty;
+
+		Spread = Math::Clamp(Spread, 0, (MaxSpread + Penalty));
 
 		if (PrintSpreadInfo)
 		{
@@ -348,16 +351,38 @@ class UGunComponent : UActorComponent
 	 */
 	void Fire(FHitResult&out Hit)
 	{
-		FVector TargetPoint = GetTargetPoint(UGunComponent::TRACE_DISTANCE);
+		// The point the player was aiming at.
+		float32 dist;
+		FVector TargetPoint = GetTargetPoint(UGunComponent::TRACE_DISTANCE, dist);
 
+		// Where the spread wants the bullet to go.
 		float ConeExtents;
 		FVector SpreadPoint = GetSpreadPoint(TargetPoint, ConeExtents);
+		TArray<EObjectTypeQuery> foo;
+		foo.Add(EObjectTypeQuery::Pawn);
+		TArray<AActor> IgnoreActors;
+		IgnoreActors.Add(GetOwner());
 
-		AActor TargetActor = SweepForTarget(Hit);
-		FVector MagnetizedPoint = GetMagnetizedPoint(TargetActor, Hit, SpreadPoint);
+		FVector SpreadEnd = TraceStart + SpreadPoint * 10000.0f;
+		FHitResult HeadHit;
+		System::LineTraceSingle(TraceStart,
+								SpreadEnd,
+								ETraceTypeQuery::TraceTypeQuery3,
+								false,
+								IgnoreActors,
+								EDrawDebugTrace::None,
+								HeadHit,
+								true,
+								FLinearColor::Transparent);
 
-		FVector ImpactPoint = TraceStart + (IsValid(TargetActor) ? MagnetizedPoint : SpreadPoint) * UGunComponent::TRACE_DISTANCE;
-		TraceFinalHit(ImpactPoint);
+		// MAGNETISM - Where the bullet gets dragged to, if applicable (an enemy was hit).
+		FHitResult MagnetismHit;
+		AActor TargetActor = SweepForTarget(MagnetismHit, dist);
+		FVector MagnetizedPoint = GetMagnetizedPoint(TargetActor, MagnetismHit, SpreadPoint);
+
+		// The final impact point, affected by magnetism or not.
+		FVector ImpactPoint = TraceStart + (IsValid(TargetActor) && !HeadHit.IsPrecisionHit() ? MagnetizedPoint : SpreadPoint) * UGunComponent::TRACE_DISTANCE;
+		TraceFinalHit(ImpactPoint, Hit);
 
 		if (GetOwner().HasAuthority())
 			BulletIndex++;
@@ -365,7 +390,16 @@ class UGunComponent : UActorComponent
 		TimeSinceLastShot = 0;
 	}
 
-	AActor SweepForTarget(FHitResult&out Hit)
+	float GetAimAssistTraceRadius(float Dist)
+	{
+		float ConeHalfAngleDeg = GenericGunAttributes.AimAssist.CurrentValue;
+		float ConeHalfAngleRad = Math::DegreesToRadians(ConeHalfAngleDeg);
+		float Radius = Math::Tan(ConeHalfAngleRad) * Dist;
+		
+		return Radius;
+	}
+
+	AActor SweepForTarget(FHitResult&out MagnetismHit, float Dist)
 	{
 		TArray<EObjectTypeQuery> ObjTypes;
 		ObjTypes.Add(EObjectTypeQuery::Pawn);
@@ -373,11 +407,7 @@ class UGunComponent : UActorComponent
 		TArray<AActor> IgnoreActors;
 		IgnoreActors.Add(GetOwner());
 
-		float AssistRange = 2500.0f;
-		float ConeHalfAngleDeg = GenericGunAttributes.AimAssist.CurrentValue;
-		float ConeHalfAngleRad = Math::DegreesToRadians(ConeHalfAngleDeg);
-
-		float Radius = Math::Tan(ConeHalfAngleRad) * AssistRange;
+		float Radius = GetAimAssistTraceRadius(Dist);
 
 #if EDITOR
 		DebugTrace = (GetOwner().AsPawn().IsLocallyControlled()) ? DebugTrace : EDrawDebugTrace::None;
@@ -386,18 +416,18 @@ class UGunComponent : UActorComponent
 		System::CapsuleTraceSingleForObjects(TraceStart,
 											 TraceEnd,
 											 Radius,
-											 Radius,
+											 0,
 											 ObjTypes,
 											 false,
 											 IgnoreActors,
 											 DebugTrace,
-											 Hit,
+											 MagnetismHit,
 											 true,
 											 FLinearColor::DPink,
 											 FLinearColor::Red,
 											 DebugTraceDuration);
 
-		return Hit.Actor;
+		return MagnetismHit.Actor;
 	}
 
 	FVector GetSpreadPoint(FVector&in TargetPoint, float&out SpreadDeg)
@@ -420,28 +450,28 @@ class UGunComponent : UActorComponent
 		return (TargetPoint - TraceStart).GetSafeNormal();
 	}
 
-	FVector GetMagnetizedPoint(AActor&in MagnetismTarget, FHitResult&in Hit, FVector&in BulletDirection)
+	FVector GetMagnetizedPoint(AActor&in MagnetismTarget, FHitResult MagnetismHit, FVector SpreadPoint)
 	{
 		FVector PulledDir;
 		if (IsValid(MagnetismTarget))
 		{
 			float MaxPullDeg = GenericGunAttributes.AimAssist.CurrentValue;
 
-			FVector DesiredDir = (Hit.ImpactPoint - TraceStart).GetSafeNormal();
+			FVector DesiredDir = (MagnetismHit.ImpactPoint - TraceStart).GetSafeNormal();
 
 			FBulletSpreadData AimAssistCone;
 			AimAssistCone.ConeWidth = Math::RadiansToDegrees(Math::Atan2(Math::Abs(DesiredDir.Y), 1.0f));
 			AimAssistCone.ConeHeight = Math::RadiansToDegrees(Math::Atan2(Math::Abs(DesiredDir.Z), 1.0f));
-			AimAssistCone.ErrorAngle = Math::RadiansToDegrees(Math::Acos(Math::Clamp(DesiredDir.DotProduct(BulletDirection), -1.0f, 1.0f)));
+			AimAssistCone.ErrorAngle = Math::RadiansToDegrees(Math::Acos(Math::Clamp(DesiredDir.DotProduct(SpreadPoint), -1.0f, 1.0f)));
 
-			PulledDir = BulletDirection;
+			PulledDir = SpreadPoint;
 			if (AimAssistCone.ErrorAngle > KINDA_SMALL_NUMBER)
 			{
 				// Move only a fraction so we rotate by at most MaxPullDeg
 				float Alpha = Math::Min(1.0f, MaxPullDeg / AimAssistCone.ErrorAngle);
-				PulledDir = (BulletDirection + (DesiredDir - BulletDirection) * Alpha).GetSafeNormal();
+				PulledDir = (SpreadPoint + (DesiredDir - SpreadPoint) * Alpha).GetSafeNormal();
 			}
-			float PullAngleDeg = Math::RadiansToDegrees(Math::Acos(Math::Clamp(BulletDirection.DotProduct(PulledDir), -1.0f, 1.0f)));
+			float PullAngleDeg = Math::RadiansToDegrees(Math::Acos(Math::Clamp(SpreadPoint.DotProduct(PulledDir), -1.0f, 1.0f)));
 			Cosmetic_DrawAimAssistCone(PulledDir, PullAngleDeg);
 		}
 
@@ -486,10 +516,12 @@ class UGunComponent : UActorComponent
 										   DebugTraceDuration);
 	}
 
-	private void TraceFinalHit(FVector&in FinalDir)
+	private void TraceFinalHit(FVector FinalDir, FHitResult&out Hit)
 	{
 		TArray<AActor> ActorsToIgnore;
 		ActorsToIgnore.Add(GetOwner()); // guncomponent is attached to character
+
+		Hits.Empty();
 
 		// Perform spread trace (the point the bullet will hit)
 		BlockingHit = System::LineTraceMulti(TraceStart,
@@ -509,12 +541,14 @@ class UGunComponent : UActorComponent
 		if (!BlockingHit)
 		{
 			Log("Trace did not hit anything!");
-			ShootSFX();
+			ASC.SendGameplayEvent(GameplayTags::Enchantment_Trigger_OnShot, Payload);
+			Hit = FHitResult();
 
 			return;
 		}
 
 		FHitResult LastHit = Hits.Last();
+		Hit = LastHit;
 
 		Payload.Instigator = OwningHero.Controller;
 		Payload.Target = LastHit.Actor;
@@ -615,12 +649,12 @@ class UGunComponent : UActorComponent
 	}
 
 	void ShootSFX()
-	{/*
-		if (CurrentAmmo > 0)
-			Gameplay::PlaySoundAtLocation(WeaponDefinition.ShootSound, GetOwner().ActorLocation, FRotator::ZeroRotator, 1.0f, 1.0f, 0.0f, WeaponDefinition.DefaultAttenuation);
-		else
-			Gameplay::PlaySoundAtLocation(DryFireSound, GetActorLocation(), FRotator::ZeroRotator, 0.6f, 0.8f, 0.0f, DefaultAttenuation);
-		*/
+	{ /*
+		 if (CurrentAmmo > 0)
+			 Gameplay::PlaySoundAtLocation(WeaponDefinition.ShootSound, GetOwner().ActorLocation, FRotator::ZeroRotator, 1.0f, 1.0f, 0.0f, WeaponDefinition.DefaultAttenuation);
+		 else
+			 Gameplay::PlaySoundAtLocation(DryFireSound, GetActorLocation(), FRotator::ZeroRotator, 0.6f, 0.8f, 0.0f, DefaultAttenuation);
+		 */
 	}
 
 	void HitSFX()
@@ -734,6 +768,9 @@ class UGunComponent : UActorComponent
 		}
 
 		Fire(Hit);
+
+		// if (IsValid(Hit.Actor))
+		// Print(f"{Hit.Actor.ActorNameOrLabel=}");
 
 		return true;
 	}
