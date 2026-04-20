@@ -51,27 +51,6 @@ class UPondGameInstance : UAdvancedFriendsGameInstance
 		}
 	}
 
-	UFUNCTION(BlueprintEvent)
-	void HostSession()
-	{}
-
-	UFUNCTION()
-	void CallHostSession()
-	{
-		HostSession();
-	}
-
-	UFUNCTION(BlueprintEvent)
-	void FindSessions()
-	{}
-
-	UFUNCTION()
-	void CallFindSessions()
-	{
-		
-	}
-
-/* TODO: REPLACE EXISTING FUNCTIONS WITH THESE!
 	UFUNCTION(BlueprintEvent, BlueprintCallable)
 	void HostSession()
 	{}
@@ -79,5 +58,4 @@ class UPondGameInstance : UAdvancedFriendsGameInstance
 	UFUNCTION(BlueprintEvent, BlueprintCallable)
 	void FindSessions()
 	{}
-*/
 };

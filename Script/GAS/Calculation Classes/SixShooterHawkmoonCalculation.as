@@ -39,7 +39,7 @@ class UGEXC_SixShooterHawkmonCalculation : UGEXC_DamageCalculationBase
 														   GetHealthMagnitude(ExecutionParams, EGameplayEffectTargetType::Enemy),
 														   GetShieldMagnitude(ExecutionParams, EGameplayEffectTargetType::Enemy));
 
-		OutExecutionOutput.ApplyGenericDamage(EGameplayEffectTargetType::Enemy, Result, this);
+		OutExecutionOutput.ApplyGenericDamage(ExecutionParams, EGameplayEffectTargetType::Enemy, Result, this);
 	}
 }
 

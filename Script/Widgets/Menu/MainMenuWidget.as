@@ -5,12 +5,6 @@ class UMainMenuWidget : UPondWidgetBase
 
     UPROPERTY(BindWidget)
     UTextBlock SteamUsernameLabel;
-    
-    UFUNCTION(BlueprintPure)
-    bool HasSteamConnection()
-    {
-        return AdvancedSessions::HasOnlineSubsystem(n"STEAM");
-    }
 
     /**
      * Overriden in BP due to lack of AdvancedSessionsSteam support in AS.
