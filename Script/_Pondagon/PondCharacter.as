@@ -49,6 +49,15 @@ class AScriptPondCharacter : APondCharacter
 	{
 		check(Cast<UScriptPondCharacterMovementComponent>(CharacterMovement) != nullptr, f"CharacterMovementComponent on {GetName()} was an incorrect type!" + "\n(Expected: UScriptPondCharacterMovementComponent | Actual: {CharacterMovement.GetName()})");
 	}
+	
+	UFUNCTION(BlueprintOverride)
+	void Possessed(AController NewController)
+	{
+		for (auto& StartingAbility : Definition.StartingAbilities)
+		{
+			AbilitySystem.GiveAbility(StartingAbility, 1, -1, nullptr);
+		}
+	}
 
 	UFUNCTION()
 	void Death()
