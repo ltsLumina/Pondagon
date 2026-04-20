@@ -26,7 +26,8 @@ class APondHUD : AAbilitySystemDebugHUD
         PingMS = PS.PingInMilliseconds;
         ID = Gameplay::GetGameState().PlayerArray.FindIndex(PS);
         
-        Msg = f"{PlayerName}\nClient ID: {ID}\nPing: {PingMS:.0}ms\nAuthority: {AuthorityStr}\nLocalRole: {LocalRoleStr}\nRemoteRole: {RemoteRoleStr}";
+        Msg = f"{PlayerName}\nClient ID: {ID}\nPing: {PingMS:.0}ms\nAuthority: {AuthorityStr}";
+        /*\nLocalRole: {LocalRoleStr}\nRemoteRole: {RemoteRoleStr}";*/
         DrawText(Msg, FLinearColor::DPink, 5, (SizeY - 95));
 
         DrawMaterialSimple(AdvancedSessions::HasOnlineSubsystem(n"STEAM") ? SteamMaterial : ClientMaterial, 0, 0, 64, 64);

@@ -127,7 +127,7 @@ class UEntityDefinitionValidator : UPondValidatorBase
 		auto Def = Cast<UEntityDefinition>(InAsset);
 		if (Def.StartingData.IsEmpty())
 		{
-			AssetFails(InAsset, FText::FromString("StartingData is empty!"));
+			AssetFails(InAsset, FText::FromString("\nStartingData is empty!\nStartingData cannot be null, or else the attribute set wont be added!"));
 			return EDataValidationResult::Invalid;
 		}
 
@@ -135,7 +135,7 @@ class UEntityDefinitionValidator : UPondValidatorBase
 		{
 			if (Data.Key == nullptr || Data.Value == nullptr)
 			{
-				AssetFails(InAsset, FText::FromString("StartingData has a null table!"));
+				AssetFails(InAsset, FText::FromString("\nStartingData is empty!\nStartingData cannot be null, or else the attribute set wont be added!"));
 				return EDataValidationResult::Invalid;
 			}
 		}
