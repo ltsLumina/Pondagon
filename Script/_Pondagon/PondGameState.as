@@ -1,4 +1,4 @@
-class APondGameState : AGameState
+class APondGameState : AGameStateBase
 {
     UPROPERTY(Category = "Players", Replicated)
     TArray<FPlayerSelectionData> PlayerSelections;
