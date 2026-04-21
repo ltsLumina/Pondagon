@@ -33,35 +33,6 @@ class AScriptPondController : APondPlayerController
 	UPROPERTY(Category = "Input | Actions | Guns")
 	UInputAction ReloadAction;
 
-	UFUNCTION(BlueprintOverride)
-	void OnPossess(APawn InPawn) // BeginPlay runs too early.
-	{
-		InitPlayerSelections();
-	}
-
-	UFUNCTION(Server)
-	void InitPlayerSelections()
-	{
-		auto GS = Pond::GetPondGameStateBase();
-		for (int i = 0; i < GS.PlayerArray.Num(); i++)
-		{
-			GS.PlayerSelections.Add(FPlayerSelectionData());
-		}
-	}
-
-	UFUNCTION(Server)
-	void SetHero(FString HeroName)
-	{
-		auto GS = Pond::GetPondGameStateBase();
-
-		FPlayerSelectionData Data;
-		Data.PlayerState = PlayerState;
-		Data.SelectedHero = HeroName;
-
-		int i = GS.PlayerArray.FindIndex(PlayerState);
-		GS.PlayerSelections[i] = Data;
-	}
-
 	bool HasInitialized;
 
 	UFUNCTION(BlueprintOverride)

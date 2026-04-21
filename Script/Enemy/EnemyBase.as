@@ -11,8 +11,6 @@ class AScriptEnemyBase : AScriptPondCharacter
 	UFUNCTION(BlueprintOverride)
 	void Possessed(AController NewController)
 	{
-		Super::Possessed(NewController);
-		
 		check(!Definition.StartingData.IsEmpty());
 
 		Attributes = Cast<UEnemyAttributes>(AbilitySystem.RegisterAttributeSet(UEnemyAttributes));
@@ -23,6 +21,9 @@ class AScriptEnemyBase : AScriptPondCharacter
 			//AbilitySystem.RegisterAttributeSet(Data.Key);
 			AbilitySystem.InitStats(Data.Key, Data.Value);
 		}
+
+		// requires AbilitySystem ref
+		Super::Possessed(NewController);
 
 #if EDITOR
 		float SpawnHealth = Health;

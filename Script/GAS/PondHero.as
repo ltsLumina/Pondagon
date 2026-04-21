@@ -124,8 +124,6 @@ class AScriptPondHero : AScriptPondCharacter
 	UFUNCTION(BlueprintOverride)
 	void Possessed(AController NewController)
 	{
-		Super::Possessed(NewController);
-
 		AScriptPondPlayerState PS = Cast<AScriptPondPlayerState>(PlayerState);
 		if (IsValid(PS))
 		{
@@ -143,6 +141,9 @@ class AScriptPondHero : AScriptPondCharacter
 				AbilitySystem.InitStats(Data.Key, Data.Value);
 			}
 		}
+
+		// requires AbilitySystem ref
+		Super::Possessed(NewController);
 	}
 
 	UFUNCTION(BlueprintOverride)

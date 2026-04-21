@@ -1,0 +1,4471 @@
+openapi: 3.0.3
+info:
+  title: Diversion Core API
+  description: Definition of the Core API used to access low-level functionality of Diversion
+  version: 0.2.0
+servers:
+  - url: https://api.diversion.dev/v0
+    description: Base endpoint
+
+paths:
+#   /auth/complete:
+#     get:
+#       operationId: src.handlers.auth.complete
+#       description: Callback URL for sign-ins
+#       parameters:
+#         - in: query
+#           required: false
+#           name: code
+#           schema:
+#             type: string
+#             minLength: 1
+#             maxLength: 128
+#         - in: query
+#           required: true
+#           name: state
+#           schema:
+#             type: string
+#             minLength: 43
+#             maxLength: 256
+#         - in: query
+#           required: false
+#           name: error_description
+#           schema:
+#             type: string
+#       responses:
+#         '200':
+#           description: Sign-in flow completed
+#           content:
+#             text/html:
+#               schema:
+#                 type: string
+#       tags:
+#         - Authentication
+#   /auth/poll:
+#     get:
+#       operationId: src.handlers.auth.poll
+#       description: Polling endpoint for the CLI to wait for the user to complete the sign-in flow
+#       parameters:
+#         - in: query
+#           required: true
+#           name: code_challenge
+#           schema:
+#             type: string
+#             minLength: 43
+#             maxLength: 128
+#       responses:
+#         202:
+#           description: Not yet completed
+#         302:
+#           description: Sign-in completed, go to redirected address to fetch the code
+#           headers:
+#             Location:
+#               required: true
+#               schema:
+#                 type: string
+#                 minLength: 1
+#                 maxLength: 256
+#         404:
+#           description: Provided `code_challenge` not found. The user might have not yet started the sign-in flow
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Error'
+#       tags:
+#         - Authentication
+#   /auth/fetch_code:
+#     get:
+#       operationId: src.handlers.auth.fetch_code
+#       description: Retrieve the code grant in exchange for the correct code challenge and verifier
+#       parameters:
+#         - in: query
+#           required: true
+#           name: code_challenge
+#           schema:
+#             type: string
+#             minLength: 43
+#             maxLength: 128
+#         - in: query
+#           required: true
+#           name: code_verifier
+#           schema:
+#             type: string
+#             minLength: 43
+#             maxLength: 128
+#       responses:
+#         200:
+#           description: Code challenge and verifier are correct, code grant returned
+#           content:
+#             application/json:
+#               schema:
+#                 type: object
+#                 properties:
+#                   code:
+#                     type: string
+#         default:
+#           $ref: '#/components/responses/Error'
+#       tags:
+#         - Authentication
+#   /auth/test:
+#     get:
+#       operationId: src.handlers.auth.test_token
+#       summary: Test token validity, repo write access
+#       description: Validate the given auth token, test write access to specified repo
+#       parameters:
+#         - in: query
+#           required: false
+#           name: repo_id
+#           schema:
+#             type: string
+#             minLength: 9
+#             maxLength: 128
+#       responses:
+#         '204':
+#           $ref: '#/components/responses/OKEmpty'
+#         '404':
+#           $ref: '#/components/responses/NotFound'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Authentication
+#   /account/billing:
+#     get:
+#       operationId: src.handlersv2.account.get_billing_session
+#       summary: Get billing information
+#       description: Get billing information for the authenticated user
+#       parameters:
+#         - in: query
+#           required: false
+#           name: return_url
+#           schema:
+#             type: string
+#             # format: uri
+#       responses:
+#         '200':
+#           description: Billing information session
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/BillingSession'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Account
+#   /account/tier:
+#     get:
+#       operationId: src.handlersv2.account.get_tier
+#       summary: Get account tier
+#       responses:
+#         '200':
+#           description: Account tier
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/GetUserTierResponse'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#       tags:
+#         - Account
+#     post:
+#       operationId: src.handlersv2.account.update_tier
+#       summary: Update current user's tier
+#       requestBody:
+#         required: true
+#         content:
+#           application/json:
+#             schema:
+#               $ref: '#/components/schemas/TierWrapper'
+#       responses:
+#         '200':
+#           description: Account tier updated
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Tier'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+  /repos:
+#     post:
+#       operationId: src.handlersv2.repo.post
+#       summary: Create a repo
+#       description: Create an empty repo
+#       requestBody:
+#         required: true
+#         content:
+#           application/json:
+#             schema:
+#               allOf:
+#                 - $ref: '#/components/schemas/NewRepo'
+#                 - type: object
+#                   properties:
+#                     branchless:
+#                       type: boolean
+#                     use_existing_dvignore:
+#                       type: boolean
+#       responses:
+#         '201':
+#           description: The newly created repo object
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Repo'
+#         '409':
+#           description: Repo with the same name already exists
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Error'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Management
+    get:
+      operationId: src.handlersv2.repo.list_all
+      summary: List user's repositories
+      description: Get a list of repositories accessibly by the authenticated user
+      parameters:
+        - in: query
+          name: owned
+          description: >
+            If specified, filters repositories by ownership of the authenticated user.
+            True would mean only repos they own will be returned.
+            False would mean only repos they collaborate on will be returned.
+          schema:
+            type: boolean
+      responses:
+        '200':
+          $ref: '#/components/responses/RepoList'
+        default:
+          $ref: '#/components/responses/Error'
+      security:
+        - OAuth2:
+            - coreapi/read
+        - OAuth2:
+            - coreapi/write
+      tags:
+        - Repository Management
+#   /repos/{repo_id}:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#     get:
+#       operationId: src.handlersv2.repo.get
+#       summary: Get details of an existing repo.
+#       description: Get details of an existing repo.
+#       responses:
+#         '200':
+#           description: Repo object with the requested identifier
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Repo'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Manipulation
+#     delete:
+#       operationId: src.handlersv2.repo.delete
+#       summary: Delete a repo.
+#       description: >-
+#         Delete a repo. All files, workspaces, commits, branches permissions etc. associated with the
+#         repo will be deleted.
+#       responses:
+#         '202':
+#           description: Repo deletion started asynchronously.
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Manipulation
+#   /repos/{repo_id}/import:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#     post:
+#       operationId: src.handlers.integrations.git_import.import_in_background
+#       summary: Import a Git repo into this Diversion repo
+#       description: >-
+#         Import a Git repo with all history from a Git URL.
+#         {repo_id} must have no commits and no branches, or be already marked as synced with the same git_url.
+#         The git repo URL must have http credentials embedded or otherwise hosted on Github and the owner has the Diversion Github app integration set up.
+#       requestBody:
+#         content:
+#           application/json:
+#             schema:
+#               $ref: '#/components/schemas/GitRepoImport'
+#       responses:
+#         '202':
+#           description: Import started asynchronously. Poll the repo until it shows a default branch.
+#         '409':
+#           description: Repo is not empty or is already synced with another URL.
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Error'
+#         '422':
+#           description: Repo credentials are not set and therefore it cannot be imported.
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Error'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Manipulation
+#   /repos/import/check:
+#     post:
+#       operationId: src.handlers.integrations.git_import.import_verify_url
+#       summary: Check if a git repo could be imported to Diversion
+#       description: >-
+#         The git repo URL must have http credentials embedded or otherwise hosted on Github and the owner has the Diversion Github app integration set up.
+#       requestBody:
+#         content:
+#           application/json:
+#             schema:
+#               $ref: '#/components/schemas/GitRepoImport'
+#       responses:
+#         '204':
+#           description: Git repo can be imported.
+#         '422':
+#           description: Repo credentials are not set and therefore it cannot be imported.
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Error'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#       tags:
+#         - Repository Manipulation
+#   /repos/{repo_id}/sync:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#     post:
+#       operationId: src.handlers.integrations.github.handle_repo_github_webhook
+#       summary: Sync a Git repo to this Diversion repo
+#       description: Sync all history from Git. The repo must already be associated with a Git repo (see import).
+#       responses:
+#         '202':
+#           description: Sync started asynchronously.
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - GithubSignature: []
+#       tags:
+#         - Repository Manipulation
+#   /repos/{repo_id}/commits:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#     get:
+#       operationId: src.handlersv2.commit.list_all
+#       description: Get a list of commits. (Executed on secondary shard)
+#       parameters:
+#         - in: query
+#           name: ref_ids
+#           description: >
+#             If specified, filters commit list to start with specified ref IDs (branches, workspaces etc.),
+#             otherwise return commits accessible from all branches.
+#           schema:
+#             type: array
+#             items:
+#               type: string
+#         - $ref: '#/components/parameters/PageLimit'
+#         - $ref: '#/components/parameters/PageSkip'
+#         - $ref: '#/components/parameters/PageQuery'
+#       responses:
+#         '200':
+#           $ref: '#/components/responses/CommitList'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Commit Manipulation
+#   /repos/{repo_id}/commits/bulk:
+#     get:
+#       operationId: src.handlersv2.commit.get_bulk
+#       description: Get bulk details of commits by their reference IDs
+#       parameters:
+#         - $ref: '#/components/parameters/RepoParam'
+#         - in: query
+#           name: ref_ids
+#           description: >
+#             List of reference IDs to include
+#           required: true
+#           schema:
+#             type: array
+#             minItems: 1
+#             items:
+#               type: string
+#               description: A reference ID
+#               example: dv.commit.350e1bc3-52dc-4659-9817-7ce8f3fdf628
+#               minLength: 3
+#               maxLength: 128
+#       responses:
+#         '200':
+#           $ref: '#/components/responses/CommitsById'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#       tags:
+#         - Repository Commit Manipulation
+#   /repos/{repo_id}/commits/{commit_id}:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#       - $ref: '#/components/parameters/CommitParam'
+#     get:
+#       operationId: src.handlersv2.commit.get
+#       description: Get details of a specific commit
+#       responses:
+#         '200':
+#           $ref: '#/components/responses/Commit'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#       tags:
+#         - Repository Commit Manipulation
+#     patch:
+#       operationId: src.handlersv2.commit.patch
+#       description: Update a commit message
+#       requestBody:
+#         required: true
+#         content:
+#           application/json:
+#             schema:
+#               $ref: '#/components/schemas/CommitMessage'
+#       responses:
+#         '200':
+#           $ref: '#/components/responses/OKEmptyObject'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Commit Manipulation
+#   /repos/{repo_id}/workspaces:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#     post:
+#       parameters:
+#         - $ref: '#/components/parameters/ClientIDParam'
+#       operationId: src.handlersv2.workspace.create_workspace
+#       summary: Create a workspace
+#       description: Create a new workspace
+#       requestBody:
+#         required: true
+#         content:
+#           application/json:
+#             schema:
+#               $ref: '#/components/schemas/NewWorkspace'
+#       responses:
+#         '201':
+#           $ref: '#/components/responses/Created'
+#         '409':
+#           description: Workspace with the same name already exists
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Error'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Workspace Manipulation
+#     get:
+#       operationId: src.handlersv2.workspace.list_all_workspaces
+#       description: List user's workspaces
+#       responses:
+#         '200':
+#           $ref: '#/components/responses/WorkspaceList'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Workspace Manipulation
+#   /repos/{repo_id}/workspaces/{workspace_id}:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#       - $ref: '#/components/parameters/WorkspaceParam'
+#     get:
+#       operationId: src.handlersv2.workspace.get_workspace
+#       description: Get a workspace object details
+#       responses:
+#         '200':
+#           description: Workspace details returned
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Workspace'
+#         '404':
+#           $ref: '#/components/responses/NotFound'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Workspace Manipulation
+#     delete:
+#       operationId: src.handlersv2.workspace.delete
+#       summary: Deletes a workspace
+#       responses:
+#         '204':
+#           $ref: '#/components/responses/OKEmpty'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Workspace Manipulation
+#   /repos/{repo_id}/workspaces/{workspace_id}/rename:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#       - $ref: '#/components/parameters/WorkspaceParam'
+#     post:
+#       operationId: src.handlersv2.workspace.rename_workspace
+#       summary: Update workspace name
+#       requestBody:
+#         required: true
+#         content:
+#           application/json:
+#             schema:
+#               $ref: '#/components/schemas/WorkspaceRename'
+#       responses:
+#         '204':
+#           $ref: '#/components/responses/OKEmpty'
+#         '409':
+#           description: Workspace with the same name already exists
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Error'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Workspace Manipulation
+#   /repos/{repo_id}/workspaces/{workspace_id}/checkout:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#       - $ref: '#/components/parameters/WorkspaceParam'
+#     post:
+#       operationId: src.handlersv2.workspace.checkout
+#       summary: Workspace checkout ref
+#       description: >-
+#         Set the workspace to follow a different branch or commit (checkout).
+#         Currently supports only moving to a branch with an identical commit as the workspace's current branch,
+#         or moving to any branch/commit if the workspace has no working changes.
+#       requestBody:
+#         required: true
+#         content:
+#           application/json:
+#             schema:
+#               $ref: '#/components/schemas/WorkspaceCheckout'
+#       responses:
+#         '204':
+#           $ref: '#/components/responses/OKEmpty'
+#         '409':
+#           $ref: '#/components/responses/FailedDueToPendingChanges'
+#         '412':
+#           $ref: '#/components/responses/PreconditionFailed'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Workspace Manipulation
+#   /repos/{repo_id}/workspaces/{workspace_id}/should_upload_logs:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#       - $ref: '#/components/parameters/WorkspaceParam'
+#       - $ref: '#/components/parameters/ClientIDParam'
+#     get:
+#       operationId: src.handlersv2.workspace.get_client_should_upload_logs
+#       summary: Should the agent upload the logs
+#       responses:
+#         '200':
+#           description: Checks whether a workspace was marked to upload its client and agent logs
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/NeedLogsOutput'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#       tags:
+#         - Repository Workspace Manipulation
+#   /repos/{repo_id}/workspaces/{workspace_id}/uploading_agents:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#       - $ref: '#/components/parameters/WorkspaceParam'
+#     get:
+#       operationId: src.handlersv2.workspace.get_uploading_agents
+#       summary: Get a list agents that are currently uploading to this workspace
+#       responses:
+#         '200':
+#           description: A list of host names (or client ID if not available) that have pending uploads
+#           content:
+#             application/json:
+#               schema:
+#                 type: object
+#                 properties:
+#                   uploaders:
+#                     type: array
+#                     items:
+#                       type: string
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#       tags:
+#         - Repository Workspace Manipulation
+#   /repos/{repo_id}/workspaces/{workspace_id}/set_uploading:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#       - $ref: '#/components/parameters/WorkspaceParam'
+#       - $ref: '#/components/parameters/ClientIDParam'
+#       - $ref: '#/components/parameters/IsUploadingParam'
+#       - $ref: '#/components/parameters/HostNameParam'
+#     post:
+#       operationId: src.handlersv2.workspace.set_uploading
+#       summary: Set a temporary indication that the workspace is currently uploading changes
+#       responses:
+#         '204':
+#           $ref: '#/components/responses/OKEmpty'
+#         '404':
+#           $ref: '#/components/responses/NotFound'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Workspace Manipulation
+#   /repos/{repo_id}/workspaces/{workspace_id}/updates:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#       - $ref: '#/components/parameters/WorkspaceParam'
+#       - $ref: '#/components/parameters/ClientIDParam'
+#       - $ref: '#/components/parameters/IsUploadingParam'
+#       - $ref: '#/components/parameters/HostNameParam'
+#     get:
+#       operationId: src.handlersv2.workspace.get_workspace_updates
+#       summary: Get updates needed to be applied by the client to this workspace
+#       parameters:
+#         - in: query
+#           name: from_ordinal_id
+#           required: true
+#           description: Returns all change history above this ordinal ID.
+#           schema:
+#             $ref: '#/components/schemas/WorkspaceJournalOrdinalId'
+#       responses:
+#         '200':
+#           description: The changes made to this workspace since the commit it's based upon.
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/WorkspaceUpdates'
+#         '404':
+#           $ref: '#/components/responses/NotFound'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Workspace Manipulation
+#     patch:
+#       operationId: src.handlersv2.workspace.apply_client_updates
+#       summary: Apply a batch of updates to the workspace
+#       requestBody:
+#         required: true
+#         content:
+#           application/json:
+#             schema:
+#               $ref: '#/components/schemas/ClientUpdates'
+#       responses:
+#         '207':
+#           description: Mixed results
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/ClientUpdateResults'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Workspace Manipulation
+  /repos/{repo_id}/workspaces/{workspace_id}/status:
+    parameters:
+      - $ref: '#/components/parameters/RepoParam'
+      - $ref: '#/components/parameters/WorkspaceParam'
+    get:
+      operationId: src.handlersv2.workspace.get_status
+      summary: Get status of changes in workspace
+      parameters:
+        - $ref: '#/components/parameters/DetailWorkspaceStatusItems'
+        - $ref: '#/components/parameters/FileEntriesLimit'
+        - $ref: '#/components/parameters/FileEntriesSkip'
+        - $ref: '#/components/parameters/FileWalkRecurseParam'
+        - $ref: '#/components/parameters/PathPrefixParam'
+        - $ref: '#/components/parameters/AllowTrim'
+      responses:
+        '200':
+          description: The changes made to this workspace since the commit it's based upon.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceStatus'
+        default:
+          $ref: '#/components/responses/Error'
+      security:
+        - OAuth2:
+            - coreapi/read
+        - OAuth2:
+            - coreapi/write
+      tags:
+        - Repository Workspace Manipulation
+
+  /repos/{repo_id}/workspaces/{workspace_id}/reset:
+    parameters:
+      - $ref: '#/components/parameters/RepoParam'
+      - $ref: '#/components/parameters/WorkspaceParam'
+    post:
+      operationId: src.handlersv2.workspace.reset
+      summary: Reset changes in workspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                all:
+                  type: boolean
+                paths:
+                  $ref: '#/components/schemas/PathsList'
+                delete_added:
+                  type: boolean
+                write_to_journal:
+                  type: boolean
+      responses:
+        '200':
+          description: The updated status of the workspace
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResetStatus'
+        default:
+          $ref: '#/components/responses/Error'
+      security:
+        - OAuth2:
+            - coreapi/write
+      tags:
+        - Repository Workspace Manipulation
+
+#   /repos/{repo_id}/workspaces/{workspace_id}/cherry-pick:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#       - $ref: '#/components/parameters/WorkspaceParam'
+#     post:
+#       operationId: src.handlersv2.workspace.cherry_pick
+#       summary: Cherry-pick a commit into the workspace
+#       requestBody:
+#         required: true
+#         content:
+#           application/json:
+#             schema:
+#               type: object
+#               properties:
+#                 ref_id:
+#                   type: string
+#                   description: The commit to cherry-pick
+#                   minLength: 7
+#                   maxLength: 128
+#               required:
+#                 - ref_id
+#       responses:
+#         '204':
+#           $ref: '#/components/responses/OKEmpty'
+#         '202':
+#           description: >-
+#             The cherry-pick is in progress.
+#             It has conflicts requiring active input from the user for conflict resolution.
+#             The response contains a merge ID, which can be used for querying /repos/{repo_id}/merges/{merge_id}
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: "#/components/schemas/MergeId"
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Workspace Manipulation
+
+  /repos/{repo_id}/workspaces/{workspace_id}/forward:
+    parameters:
+      - $ref: '#/components/parameters/RepoParam'
+      - $ref: '#/components/parameters/WorkspaceParam'
+    post:
+      operationId: src.handlersv2.workspace.forward_workspace
+      summary: Merge base branch into workspace
+      responses:
+        '204':
+          description: Base ref is already up to date with the other ref, no action was made
+          $ref: '#/components/responses/OKEmpty'
+        '200':
+          description: The merge into a workspace was completed successfully
+          $ref: '#/components/responses/OKEmpty'
+        '202':
+          description: >-
+            The merge is in progress.
+            It has merge conflicts requiring active input from the user for conflict resolution.
+            The response contains a merge ID, which can be used for querying /repos/{repo_id}/merges/{merge_id}
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MergeId"
+        '412':
+          description: Workspace is detached
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - OAuth2:
+            - coreapi/write
+      tags:
+        - Repository Workspace Manipulation
+
+  /repos/{repo_id}/workspaces/{workspace_id}/commit:
+    parameters:
+      - $ref: '#/components/parameters/RepoParam'
+      - $ref: '#/components/parameters/WorkspaceParam'
+    post:
+      operationId: src.handlersv2.workspace.commit_workspace
+      description: Commit workspace to base branch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommitRequest'
+      responses:
+        '201':
+          $ref: '#/components/responses/CommitCreated'
+        '200':
+          description: Workspace contains no changes to commit
+          $ref: '#/components/responses/OKEmpty'
+        '400':
+          $ref: '#/components/responses/CommitInvalidPaths'
+        '412':
+          description: Workspace is detached
+          $ref: '#/components/responses/PreconditionFailed'
+        '409':
+          description: Workspace contains conflicts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '522':
+          description: Server service error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        default:
+          $ref: '#/components/responses/Error'
+      security:
+        - OAuth2:
+            - coreapi/write
+      tags:
+        - Repository Commit Manipulation
+
+#   /repos/{repo_id}/workspaces/{workspace_id}/preferences:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#       - $ref: '#/components/parameters/WorkspaceParam'
+#     get:
+#       operationId: src.handlersv2.workspace.get_preferences
+#       summary: Get preferences of the current user
+#       responses:
+#         '200':
+#           description: Preferences of the workspace for the user
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/WorkspacePreferences'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#       tags:
+#         - Repository Workspace Manipulation
+#     put:
+#       operationId: src.handlersv2.workspace.set_preferences
+#       summary: Update the preferences of the current user
+#       requestBody:
+#         required: true
+#         content:
+#           application/json:
+#             schema:
+#               $ref: '#/components/schemas/WorkspacePreferences'
+#       responses:
+#         '202':
+#           $ref: '#/components/responses/OKEmpty'
+#         '409':
+#           description: Cannot save preferences
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Error'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Workspace Manipulation
+
+  /repos/{repo_id}/workspaces/{workspace_id}/other_statuses:
+    parameters:
+      - $ref: '#/components/parameters/RepoParam'
+      - $ref: '#/components/parameters/WorkspaceParam'
+      - $ref: '#/components/parameters/PathPrefixParam'
+      - $ref: '#/components/parameters/PathPrefixesParam'
+      - $ref: '#/components/parameters/FileEntriesLimit'
+      - $ref: '#/components/parameters/FileEntriesSkip'
+      - $ref: '#/components/parameters/FileWalkRecurseParam'
+    get:
+      operationId: src.handlersv2.workspace.get_other_statuses
+      summary: Get list of potential clashes with files in other users' workspaces and branches
+      responses:
+        '200':
+          description: By path description of file statuses in other workspaces and branches
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefsFilesStatus'
+        default:
+          $ref: '#/components/responses/Error'
+      security:
+        - OAuth2:
+            - coreapi/read
+      tags:
+        - Repository Workspace Manipulation
+
+#   /repos/{repo_id}/branches:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#     post:
+#       operationId: src.handlersv2.branch.post
+#       description: Create a branch
+#       requestBody:
+#         required: true
+#         content:
+#           application/json:
+#             schema:
+#               $ref: '#/components/schemas/NewBranch'
+#       responses:
+#         '201':
+#           $ref: '#/components/responses/Created'
+#         '409':
+#           description: Branch with the same name already exists
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Error'
+#         '503':
+#           description: Service unavailable
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Error'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Branch Manipulation
+#     get:
+#       operationId: src.handlersv2.branch.list_all
+#       description: Get a list of all branches in the repo.
+#       responses:
+#         '200':
+#           $ref: '#/components/responses/BranchList'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Branch Manipulation
+#   /repos/{repo_id}/branches/{branch_id}:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#       - $ref: '#/components/parameters/BranchParam'
+#     patch:
+#       operationId: src.handlersv2.branch.patch
+#       summary: Update a branch
+#       requestBody:
+#         required: true
+#         content:
+#           application/json:
+#             schema:
+#               type: object
+#               properties:
+#                 commit_id:
+#                   type: string
+#                 branch_name:
+#                   type: string
+#                 branch_description:
+#                   type: string
+#       responses:
+#         '204':
+#           $ref: '#/components/responses/OKEmpty'
+#         '409':
+#           description: Branch with the same name already exists
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Error'
+#         '501':
+#           description: Renaming branches is not supported for repositories synced with git
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Error'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Branch Manipulation
+#     get:
+#       operationId: src.handlersv2.branch.get
+#       summary: Get the current branch details
+#       responses:
+#         '200':
+#           description: Branch details returned
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Branch'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Branch Manipulation
+#     delete:
+#       operationId: src.handlersv2.branch.delete
+#       description: Delete a branch
+#       responses:
+#         '204':
+#           $ref: '#/components/responses/OKEmpty'
+#         '400':
+#           $ref: '#/components/responses/BadRequest'
+#         '503':
+#           description: Service unavailable
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Error'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Branch Manipulation
+#   /repos/{repo_id}/tags:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#     get:
+#       operationId: src.handlersv2.tag.list_all
+#       summary: Get a list of all tags in the repo.
+#       responses:
+#         '200':
+#           $ref: '#/components/responses/TagList'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Tag Manipulation
+#     post:
+#       operationId: src.handlersv2.tag.post
+#       summary: Create a tag
+#       requestBody:
+#         required: true
+#         content:
+#           application/json:
+#             schema:
+#               $ref: '#/components/schemas/CreateTag'
+#       responses:
+#         '201':
+#           $ref: '#/components/responses/Created'
+#         '409':
+#           description: Tag with the same name already exists
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Error'
+#         '503':
+#           description: Service unavailable
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Error'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Tag Manipulation
+#   /repos/{repo_id}/tags/{tag_id}:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#       - $ref: '#/components/parameters/TagParam'
+#     get:
+#       operationId: src.handlersv2.tag.get
+#       summary: Get tag details
+#       responses:
+#         '200':
+#           description: Tag details returned
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Tag'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Tag Manipulation
+#     patch:
+#       operationId: src.handlersv2.tag.patch
+#       summary: Update a tag
+#       requestBody:
+#         required: true
+#         content:
+#           application/json:
+#             schema:
+#               $ref: '#/components/schemas/ModifyTag'
+#       responses:
+#         '204':
+#           $ref: '#/components/responses/OKEmpty'
+#         '409':
+#           description: Tag with the same name already exists
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Error'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Tag Manipulation
+#     delete:
+#       operationId: src.handlersv2.tag.delete
+#       summary: Delete a tag
+#       responses:
+#         '204':
+#           $ref: '#/components/responses/OKEmpty'
+#         '503':
+#           description: Service unavailable
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Error'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Tag Manipulation
+
+#   /repos/{repo_id}/shelves:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#     get:
+#       operationId: src.handlersv2.shelf.list_all
+#       summary: Get a list of all shelves in the repo.
+#       parameters:
+#         - in: query
+#           name: branch_id
+#           description: Optional branch id to filter by
+#           schema:
+#             type: string
+#           required: false
+#       responses:
+#         '200':
+#           $ref: '#/components/responses/ShelfList'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Shelves Manipulation
+#     post:
+#       operationId: src.handlersv2.shelf.post
+#       summary: Create a shelf
+#       requestBody:
+#         required: true
+#         content:
+#           application/json:
+#             schema:
+#               $ref: '#/components/schemas/CreateShelf'
+#       responses:
+#         '201':
+#           description: Shelf details returned
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Shelf'
+#         '409':
+#           description: Shelf with the same name already exists
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Error'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Shelves Manipulation
+#   /repos/{repo_id}/shelves/{shelf_id}:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#       - $ref: '#/components/parameters/ShelfIdParam'
+#     get:
+#       operationId: src.handlersv2.shelf.get
+#       summary: Get shelf details
+#       responses:
+#         '200':
+#           description: Shelf details returned
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Shelf'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Shelves Manipulation
+#     delete:
+#       operationId: src.handlersv2.shelf.delete
+#       summary: Delete a shelf
+#       responses:
+#         '204':
+#           $ref: '#/components/responses/OKEmpty'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Shelves Manipulation
+#   /repos/{repo_id}/shelves/{shelf_id}/apply:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#       - $ref: '#/components/parameters/ShelfIdParam'
+#     post:
+#       operationId: src.handlersv2.shelf.apply
+#       summary: Apply a shelf onto a workspace
+#       requestBody:
+#         required: true
+#         content:
+#           application/json:
+#             schema:
+#               $ref: '#/components/schemas/ApplyShelf'
+#       responses:
+#         '204':
+#           description: The merge into a workspace was completed successfully
+#           $ref: '#/components/responses/OKEmpty'
+#         '202':
+#           description: >-
+#             The merge is in progress.
+#             It has merge conflicts requiring active input from the user for conflict resolution.
+#             The response contains a merge ID, which can be used for querying /repos/{repo_id}/merges/{merge_id}
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: "#/components/schemas/MergeId"
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Shelves Manipulation
+
+#   /repos/{repo_id}/trees/{ref_id}:
+#     get:
+#       operationId: src.handlersv2.tree.filetree
+#       summary: Get file tree snapshot. Either one of workspace, branch or commit ID needs to be specified as ref ID. (Executed on secondary shard)
+#       parameters:
+#         - $ref: '#/components/parameters/RepoParam'
+#         - $ref: '#/components/parameters/RefParam'
+#         - $ref: '#/components/parameters/OptionalPathParam'
+#         - $ref: '#/components/parameters/FileWalkRecurseParam'
+#         - $ref: '#/components/parameters/PageSkip'
+#         - $ref: '#/components/parameters/FileEntriesLimit'
+#         - $ref: '#/components/parameters/DirOffsetItemName'
+#         - $ref: '#/components/parameters/IncludeDeletedItemsParam'
+#         - $ref: '#/components/parameters/WorkspaceJournalOrdinalIdParam'
+#         - $ref: '#/components/parameters/TreeItemNameQueryParam'
+#         - $ref: '#/components/parameters/DirsOnlyParam'
+#         - $ref: '#/components/parameters/UseSelectiveSyncParam'
+#         - $ref: '#/components/parameters/MaxDepthParam'
+#         - $ref: '#/components/parameters/IgnoreJournalOrdinalDifference'
+#       responses:
+#         '200':
+#           $ref: '#/components/responses/FileEntryList'
+#         '400':
+#           $ref: '#/components/responses/BadRequest'
+#         '404':
+#           $ref: '#/components/responses/NotFound'
+#         '412':
+#           $ref: '#/components/responses/PreconditionFailed'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Manipulation
+  /repos/{repo_id}/files/history/{ref_id}/{path}:
+    parameters:
+      - $ref: '#/components/parameters/RepoParam'
+      - $ref: '#/components/parameters/RefParam'
+      - $ref: '#/components/parameters/PathParam'
+    get:
+      operationId: src.handlersv2.commit.get_object_history
+      summary: Get object history in a ref by its latest path
+      parameters:
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageSkip'
+      responses:
+        '200':
+          $ref: '#/components/responses/FileHistoryResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/Error'
+      security:
+        - OAuth2:
+            - coreapi/write
+      tags:
+        - Repository Manipulation
+  /repos/{repo_id}/files/{ref_id}/{path}:
+    parameters:
+      - $ref: '#/components/parameters/RepoParam'
+      - $ref: '#/components/parameters/RefParam'
+      - $ref: '#/components/parameters/PathParam'
+    get:
+      operationId: src.handlersv2.files.get_file_entry
+      summary: Get file entry (either tree or blob). Either one of workspace, branch or commit ID needs to be specified.
+      responses:
+        '200':
+          description: File information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileEntry'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        default:
+          $ref: '#/components/responses/Error'
+      security:
+        - OAuth2:
+            - coreapi/read
+        - OAuth2:
+            - coreapi/write
+      tags:
+        - Repository Manipulation
+#     post:
+#       operationId: src.handlersv2.files.create_or_update_file
+#       summary: Upload file to a new or existing path
+#       parameters:
+#         - $ref: '#/components/parameters/ClientIDParam'
+#         - $ref: '#/components/parameters/StorageBackendParam'
+#         - $ref: '#/components/parameters/StorageUriParam'
+#         - $ref: '#/components/parameters/ModeParam'
+#         - $ref: '#/components/parameters/MtimeParam'
+#         - $ref: '#/components/parameters/SizeParam'
+#         - $ref: '#/components/parameters/SHA1Param'
+#       requestBody:
+#         required: false
+#         description: Blob binary contents, if the file is a blob and if alternative storage solution was not used.
+#         content:
+#           application/octet-stream:
+#             schema:
+#               type: string
+#               format: binary
+#       responses:
+#         '202':
+#           description: File created or updated
+#         '400':
+#           description: Path should be normalized
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Error'
+#         '412':
+#           description: Race condition, please attempt the operation again
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Error'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - File Mutation
+#     delete:
+#       operationId: src.handlersv2.files.delete_file
+#       summary: Delete a file from an existing path
+#       parameters:
+#         - $ref: '#/components/parameters/ClientIDParam'
+#       responses:
+#         '202':
+#           description: File deleted
+#         '404':
+#           $ref: '#/components/responses/NotFound'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - File Mutation
+#     patch:
+#       operationId: src.handlersv2.files.move_file
+#       summary: Move a file to a different path
+#       parameters:
+#         - name: new_path
+#           in: query
+#           schema:
+#             type: string
+#             format: path
+#             example: /path/to/file
+#           required: true
+#           description: The new path to where the file has moved
+#         - $ref: '#/components/parameters/ClientIDParam'
+#       responses:
+#         '202':
+#           description: File moved
+#         '404':
+#           $ref: '#/components/responses/NotFound'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - File Mutation
+
+  /repos/{repo_id}/blobs/{ref_id}/{path}:
+    get:
+      operationId: src.handlersv2.files.get_blob
+      summary: Get blob contents snapshot. Either one of workspace, branch or commit ID needs to be specified.
+      parameters:
+        - $ref: '#/components/parameters/RepoParam'
+        - $ref: '#/components/parameters/RefParam'
+        - $ref: '#/components/parameters/PathParam'
+      responses:
+        '200':
+          description: File contents
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '204':
+          $ref: "#/components/responses/CustomRedirect"
+      #        Can't define more content-types because of this bug: https://github.com/zalando/connexion/issues/1062
+      #        default:
+      #          $ref: '#/components/responses/Error'
+      security:
+        - OAuth2:
+            - coreapi/read
+        - OAuth2:
+            - coreapi/write
+      tags:
+        - Repository Manipulation
+
+#   /repos/{repo_id}/blobs/download:
+#     get:
+#       operationId: src.handlersv2.files.download_blob
+#       summary: Get blob contents using storage information, as retrieved from other APIs.
+#       parameters:
+#         - $ref: '#/components/parameters/RepoParam'
+#         - name: storage_backend
+#           in: query
+#           required: true
+#           description: "Storage type of the blob."
+#           schema:
+#             $ref: '#/components/schemas/StorageBackend'
+#         - name: storage_uri
+#           in: query
+#           required: true
+#           description: "Storage uri of the blob."
+#           schema:
+#             $ref: '#/components/schemas/StorageUri'
+#       responses:
+#         '200':
+#           description: File contents
+#           content:
+#             application/octet-stream:
+#               schema:
+#                 type: string
+#                 format: binary
+#         '204':
+#           $ref: "#/components/responses/CustomRedirect"
+#       #        Can't define more content-types because of this bug: https://github.com/zalando/connexion/issues/1062
+#       #        default:
+#       #          $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Manipulation
+
+#   /repos/{repo_id}/blobs/upload:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#     get:
+#       operationId: src.handlersv2.files.get_blob_upload_link
+#       summary: Request an upload link for async blob upload from client side
+#       parameters:
+#         - $ref: '#/components/parameters/SHA1Param'
+#       responses:
+#         '201':
+#           description: Upload URL is returned
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/BlobUploadUrl'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - File Mutation
+
+#   /repos/{repo_id}/blobs/multipart_upload:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#     get:
+#       operationId: src.handlersv2.files.get_blob_multipart_upload_links
+#       summary: Request upload links for async blob multipart upload from client side
+#       parameters:
+#         - $ref: '#/components/parameters/RequiredSHA1Param'
+#         - $ref: '#/components/parameters/RequiredSizeParam'
+#       responses:
+#         '201':
+#           description: Multipart upload URLs are returned
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/BlobSingleOrMultipartUploadUrl'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - File Mutation
+
+#   /repos/{repo_id}/blobs/complete_multipart_upload:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#     post:
+#       operationId: src.handlersv2.files.complete_multipart_upload
+#       summary: Complete a multipart upload
+#       requestBody:
+#         required: true
+#         content:
+#           application/json:
+#             schema:
+#               $ref: '#/components/schemas/CompletedMultipartUpload'
+#       responses:
+#         '204':
+#           $ref: '#/components/responses/OKEmpty'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - File Mutation
+
+  /repos/{repo_id}/merges/{merge_id}:
+    parameters:
+      - $ref: '#/components/parameters/RepoParam'
+      - $ref: '#/components/parameters/MergeParam'
+    get:
+      operationId: src.handlersv2.merge.get_open_merge
+      summary: Details of a specific merge in progress
+      responses:
+        '200':
+          $ref: '#/components/responses/DetailedMerge'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - OAuth2:
+            - coreapi/read
+        - OAuth2:
+            - coreapi/write
+      tags:
+        - Repository Merge Manipulation
+    post:
+      operationId: src.handlersv2.merge.finalize
+      summary: After all conflicts are resolved, finalizes the merge with a commit
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommitMessage'
+      responses:
+        '200':
+          $ref: '#/components/responses/OKEmpty'
+        '201':
+          $ref: '#/components/responses/Created'
+        '403':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '405':
+          $ref: '#/components/responses/Error'
+        '503':
+          description: Service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - OAuth2:
+            - coreapi/write
+      tags:
+        - Repository Merge Manipulation
+
+#   /repos/{repo_id}/merges/{merge_id}/close:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#       - $ref: '#/components/parameters/MergeParam'
+#     post:
+#       operationId: src.handlersv2.merge.close_merge
+#       summary: Close an open merge without resolving it
+#       responses:
+#         '200':
+#           $ref: '#/components/responses/OKEmpty'
+#         '403':
+#           $ref: '#/components/responses/Unauthorized'
+#         '404':
+#           $ref: '#/components/responses/NotFound'
+#         '503':
+#           description: Service unavailable
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Merge Manipulation
+#   /repos/{repo_id}/merges/{merge_id}/conflicts/{conflict_id}/accept:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#       - $ref: '#/components/parameters/MergeParam'
+#       - $ref: '#/components/parameters/ConflictIdParam'
+#     post:
+#       operationId: src.handlersv2.merge.accept_side
+#       summary: Accepts a change from one of the branches (base or other)
+#       parameters:
+#         - $ref: '#/components/parameters/ConflictIndexIdParam'
+#       responses:
+#         '200':
+#           $ref: '#/components/responses/OKEmpty'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Merge Manipulation
+  /repos/{repo_id}/merges/{merge_id}/conflicts/{conflict_id}:
+    parameters:
+      - $ref: '#/components/parameters/RepoParam'
+      - $ref: '#/components/parameters/MergeParam'
+      - $ref: '#/components/parameters/ConflictIdParam'
+    post:
+      operationId: src.handlersv2.merge.set_result
+      summary: Update a conflicting file, potentially resolving the conflict.
+      parameters:
+        - $ref: '#/components/parameters/SizeParam'
+        - $ref: '#/components/parameters/SHA1Param'
+          description: sha of the contents, to be used in case of async flow
+        - $ref: '#/components/parameters/StorageBackendParam'
+        - $ref: '#/components/parameters/StorageUriParam'
+        - $ref: '#/components/parameters/ModeParam'
+          description: Updates the file or tree mode with the given value. Can be used to resolve mode conflicts.
+        - in: query
+          name: path
+          schema:
+            type: string
+          description: Updates the path of the file with the value passed here. Can be used to resolve path conflicts.
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '202':
+          $ref: '#/components/responses/OKEmpty'
+        default:
+          $ref: '#/components/responses/Error'
+      security:
+        - OAuth2:
+            - coreapi/write
+      tags:
+        - Repository Merge Manipulation
+  /repos/{repo_id}/merges:
+    parameters:
+      - $ref: '#/components/parameters/RepoParam'
+    get:
+      operationId: src.handlersv2.merge.list_open_merges
+      summary: Retrieve conflicted merges in this repo
+      parameters:
+        - $ref: '#/components/parameters/BaseRefParam'
+        - $ref: '#/components/parameters/OtherRefParam'
+      responses:
+        '200':
+          $ref: '#/components/responses/MergeList'
+      security:
+        - OAuth2:
+            - coreapi/read
+        - OAuth2:
+            - coreapi/write
+      tags:
+        - Repository Merge Manipulation
+    post:
+      operationId: src.handlersv2.merge.post
+      summary: Merge ref into a branch
+      parameters:
+        - $ref: '#/components/parameters/BaseRefParam'
+          required: true
+          description: A branch or workspace ID
+        - $ref: '#/components/parameters/OtherRefParam'
+          required: true
+          description: A commit or branch ID
+      responses:
+        '200':
+          description: Base ref is already up to date with the other ref, no action was made
+          $ref: '#/components/responses/OKEmpty'
+        '201':
+          description: The merge into a branch was completed successfully, and the response contains the new commit ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewResourceId'
+        '202':
+          description: >-
+            The merge is in progress.
+            It has merge conflicts requiring active input from the user for conflict resolution.
+            The response contains a merge ID, which can be used for querying /repos/{repo_id}/merges/{merge_id}
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MergeId"
+        '503':
+          description: Service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - OAuth2:
+            - coreapi/write
+      tags:
+        - Repository Merge Manipulation
+#   /repos/{repo_id}/merge_request:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#     get:
+#       operationId: src.handlersv2.merge.merge_request
+#       summary: Preview Merging two branches and request a review
+#       parameters:
+#         - $ref: '#/components/parameters/BaseRefParam'
+#           required: true
+#           description: A branch ID
+#         - $ref: '#/components/parameters/OtherRefParam'
+#           required: true
+#           description: A branch ID
+#       responses:
+#         '200':
+#           description: A URL to a webapp page showing the incoming changes in the future merge.
+#           content:
+#             application/json:
+#               schema:
+#                 type: object
+#                 properties:
+#                   url:
+#                     type: string
+#         '400':
+#           $ref: '#/components/responses/BadRequest'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Merge Manipulation
+#   /repos/{repo_id}/revert:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#     post:
+#       operationId: src.handlersv2.revert.revert
+#       parameters:
+#         - $ref: '#/components/parameters/BaseRefParam'
+#           required: true
+#         - $ref: '#/components/parameters/RevertRefParam'
+#           required: true
+#       summary: Revert commit
+#       description: >
+#         The operation reverts any changes done in the single commit represented by revert_ref_id (compared to its own parent).
+#         These opposing changes are then applied into the branch represented by base_id.
+#         If any changes were done between revert_ref_id and base_id, they will be checked for conflicts with the revert changes.
+#       responses:
+#         '200':
+#           description: The revert was empty
+#           $ref: '#/components/responses/OKEmpty'
+#         '201':
+#           description: The revert was completed successfully
+#         '202':
+#           description: >-
+#             The revert is in progress.
+#             It has merge conflicts requiring active input from the user for conflict resolution.
+#             The response contains a merge ID, which can be used for querying /repos/{repo_id}/merges/{merge_id}
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: "#/components/schemas/MergeId"
+#         '400':
+#           $ref: '#/components/responses/BadRequest'
+#         '409':
+#           description: The workspace is not empty, cannot revert
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Error'
+#         '503':
+#           description: Service unavailable
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Commit Manipulation
+#   /repos/{repo_id}/revert_to_commit_workspace:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#     post:
+#       operationId: src.handlersv2.workspace.revert_to_commit
+#       parameters:
+#         - name: workspace_id
+#           in: query
+#           schema:
+#               type: string
+#           required: true
+#           description: The workspace ID to revert to
+#         - name: commit_id
+#           in: query
+#           schema:
+#             type: string
+#           required: true
+#           description: The commit ID to revert to
+#       summary: Revert to commit
+#       description: >
+#         The operation gets the file version in the specific commit and applies it to the workspace.
+#         Changes are the saved to the workspace.
+#       responses:
+#         '201':
+#           description: The revert was completed successfully
+#         '400':
+#           $ref: '#/components/responses/BadRequest'
+#         '409':
+#           description: The workspace is not empty, cannot revert
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Repository Commit Manipulation
+#   /repos/{repo_id}/collaborators:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#     get:
+#       operationId: src.handlers.collaboration.list_collaborators
+#       description: Get all collaborators and pending invites for repo
+#       responses:
+#         '200':
+#           $ref: '#/components/responses/CollaboratorsList'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#       tags:
+#         - Collaborators
+#   /repos/{repo_id}/collaborators/{user_id}:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#       - $ref: '#/components/parameters/UserIdParam'
+#     patch:
+#       operationId: src.handlers.collaboration.update_mode
+#       description: Change a user's access level to the repo
+#       requestBody:
+#         content:
+#           application/json:
+#             schema:
+#               $ref: '#/components/schemas/CollaborationRequest'
+#       responses:
+#         '200':
+#           $ref: '#/components/responses/OKEmpty'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Collaborators
+#     delete:
+#       operationId: src.handlers.collaboration.revoke_access
+#       description: Revoke a user's access level to the repo
+#       responses:
+#         '200':
+#           $ref: '#/components/responses/OKEmpty'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Collaborators
+#   /repos/{repo_id}/invites:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#     put:
+#       operationId: src.handlersv2.invites.create_new
+#       description: Invite a collaborator to a repository
+#       requestBody:
+#         required: true
+#         content:
+#           application/json:
+#             schema:
+#               $ref: '#/components/schemas/CollaborationInviteRequest'
+#       responses:
+#         '204':
+#           $ref: '#/components/responses/OKEmpty'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Collaborators
+#   /repos/{repo_id}/invites/{invite_id}:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#       - $ref: '#/components/parameters/InviteIdParam'
+#     post:
+#       operationId: src.handlersv2.invites.resend
+#       description: Resend existing invite
+#       responses:
+#         '204':
+#           $ref: '#/components/responses/OKEmpty'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Collaborators
+#     delete:
+#       operationId: src.handlersv2.invites.revoke
+#       description: Revoke existing invite
+#       responses:
+#         '200':
+#           $ref: '#/components/responses/OKEmpty'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Collaborators
+#   /repos/{repo_id}/compare:
+#     parameters:
+#       - $ref: '#/components/parameters/RepoParam'
+#     get:
+#       operationId: src.handlersv2.tree.compare
+#       summary: Compare two refs (commit/branch/workspace/tag/tree) in this repo. (Executed on secondary shard)
+#       parameters:
+#         - in: query
+#           name: base_id
+#           description: |
+#             A workspace_id, branch_id, commit_id or tag_id.
+#             If omitted, assuming the empty tree, unless other_id is a workspace,
+#             in which case base_id is assumed to be the workspace base ref.
+#           schema:
+#             type: string
+#             maxLength: 128
+#             default: ''
+#         - $ref: '#/components/parameters/OtherRefParam'
+#       responses:
+#         '200':
+#           $ref: '#/components/responses/ComparisonList'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#       tags:
+#         - Repository Content Comparison
+#   /organizations:
+#     post:
+#       operationId: src.handlersv2.organization.post
+#       summary: Create a new organization
+#       description: >
+#         Creates a new organization with the user as the owner
+#         If the user is already a member of an organization with the same name, the request will fail
+#       requestBody:
+#         required: true
+#         content:
+#           application/json:
+#             schema:
+#               $ref: '#/components/schemas/CreateOrganization'
+#       responses:
+#         '201':
+#           description: Organization created
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Organization'
+#         '409':
+#           description: Organization with the same name already exists
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Error'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/write
+#     get:
+#       operationId: src.handlersv2.organization.list_all
+#       summary: List user's organizations
+#       parameters:
+#         - in: query
+#           name: owned
+#           description: Filter by organizations owned by the user or not.
+#           schema:
+#             type: boolean
+#       responses:
+#         '200':
+#           $ref: '#/components/responses/OrganizationList'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#         - OAuth2:
+#             - coreapi/write
+#       tags:
+#         - Organization Management
+#   /organizations/{org_id}:
+#     parameters:
+#       - $ref: '#/components/parameters/OrgParam'
+#     get:
+#       operationId: src.handlersv2.organization.get_organization
+#       summary: Get organization details
+#       responses:
+#         '200':
+#           description: Organization details returned
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Organization'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+
+#   /recommendation:
+#     post:
+#       operationId: src.handlersv2.recommendation.send_recommendation
+#       summary: Send recommendations form a user to his friends
+#       requestBody:
+#         required: true
+#         content:
+#           application/json:
+#             schema:
+#               $ref: '#/components/schemas/RecommendationRequest'
+#       responses:
+#         '200':
+#           $ref: '#/components/responses/OKEmpty'
+#         '400':
+#           $ref: '#/components/responses/BadRequest'
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#       tags:
+#         - Recommendations
+
+#   /debug/isalive:
+#     get:
+#       operationId: src.handlers.debug.is_alive
+#       summary: Check server is alive
+#       responses:
+#         '200':
+#           $ref: '#/components/responses/OKEmpty'
+#       tags:
+#         - Debug
+
+  /support/error:
+    post:
+      operationId: src.handlers.support.error_report
+      summary: Send an error report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ErrorReport'
+      responses:
+        '204':
+          $ref: '#/components/responses/OKEmpty'
+      security:
+        - OAuth2:
+            - coreapi/read
+      tags:
+        - Support
+
+#   /support/bundle/upload:
+#     get:
+#       operationId: src.handlers.support.get_support_bundle_upload_link
+#       summary: Get a presigned url that will be used to upload a support bundle
+#       parameters:
+#         - in: query
+#           name: repo_id
+#           required: false
+#           schema:
+#             type: string
+#             example: example_id
+#             minLength: 3
+#             maxLength: 128
+#           description: The repo ID of the repository
+#         - in: query
+#           name: message
+#           description: A description of the support issue
+#           schema:
+#             type: string
+#             default: ''
+#         - in: query
+#           name: urgency
+#           description: The urgency level of the support issue
+#           schema:
+#             $ref: '#/components/schemas/UrgencyLevel'
+#       responses:
+#         '202':
+#           description: Presigned URL is returned
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/PresignedUploadUrl'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#       tags:
+#         - Support
+  /analytics/ingest:
+    post:
+      operationId: src.handlers.analytics.ingest
+      summary: Ingest analytics events
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalyticsEvents'
+      responses:
+        '204':
+          $ref: '#/components/responses/OKEmpty'
+      security:
+        - OAuth2:
+            - coreapi/read
+      tags:
+        - Analytics
+#   /analytics/identify:
+#     post:
+#       operationId: src.handlers.analytics.identify
+#       summary: Update user traits
+#       requestBody:
+#         required: true
+#         content:
+#           application/json:
+#             schema:
+#               $ref: '#/components/schemas/AnalyticsIdentify'
+#       responses:
+#         '204':
+#           $ref: '#/components/responses/OKEmpty'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+#       tags:
+#         - Analytics
+#   /analytics/anonymous/ingest:
+#     post:
+#       operationId: src.handlers.analytics.ingest_anon
+#       summary: Ingest analytics events without user context
+#       parameters:
+#         - in: query
+#           name: anonymous_id
+#           description: An anonymous user id
+#           schema:
+#             type: string
+#             default: ''
+#       requestBody:
+#         required: true
+#         content:
+#           application/json:
+#             schema:
+#               $ref: '#/components/schemas/AnalyticsEvents'
+#       responses:
+#         '204':
+#           $ref: '#/components/responses/OKEmpty'
+#       tags:
+#         - Analytics
+#   /integrations/github:
+#     post:
+#       operationId: src.handlers.integrations.github.handle_github_app_webhook
+#       summary: An endpoint for Github app installation callbacks
+#       description: Used for app installation events along with webhooks events used for repo sync.
+#       responses:
+#         '202':
+#           description: Event processed. If needed, a sync was started asynchronously.
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - GithubSignature: []
+#       tags:
+#         - Github App Integration
+#   /integrations/stripe:
+#     post:
+#       operationId: src.handlers.integrations.stripe.handle_stripe_webhook
+#       summary: An endpoint for Stripe webhook events
+#       description: Used for subscription events and other Stripe events
+#       parameters:
+#         - in: header
+#           name: Stripe-Signature
+#           schema:
+#             type: string
+#           required: true
+#       responses:
+#         '200':
+#           description: Event processed
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - StripeSignature: []
+#       tags:
+#         - Stripe Integration
+#   /notifications:
+#     get:
+#       operationId: src.handlersv2.notifications.list_all
+#       summary: List all notifications for the user
+#       responses:
+#         '200':
+#           description: Notifications returned
+#           content:
+#             application/json:
+#               schema:
+#                 type: object
+#                 properties:
+#                   object:
+#                     type: string
+#                     enum: [ Notification ]
+#                   items:
+#                     type: array
+#                     items:
+#                       $ref: '#/components/schemas/Notification'
+#                 required:
+#                   - object
+#                   - items
+#         default:
+#           $ref: '#/components/responses/Error'
+#       security:
+#         - OAuth2:
+#             - coreapi/read
+components:
+  securitySchemes:
+    OAuth2: # arbitrary name
+      type: oauth2
+      x-tokenInfoFunc: src.token_info.token_auth
+      description: This API uses OAuth 2 with the implicit grant flow
+      flows:
+        implicit:
+          authorizationUrl: https://auth.diversion.dev/oauth2/authorize
+          scopes:
+            coreapi/read: Operations with no possible side-effects
+            coreapi/write: Modifying operations
+            coreapi/admin: Organizational operations like adding a repo or changing repo properties
+    GithubSignature:
+      type: apiKey
+      in: header
+      name: X-Hub-Signature-256
+      description: Github webhook signature
+      x-apikeyInfoFunc: src.handlers.integrations.github.verify_github_signature
+    StripeSignature:
+      type: apiKey
+      in: header
+      name: Stripe-Signature
+      description: Stripe webhook signature
+      x-apikeyInfoFunc: src.handlers.integrations.stripe.verify_stripe_signature
+  responses:
+    RepoList:
+      description: Success
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              object:
+                type: string
+                enum: [ Repo ]
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Repo'
+            required:
+              - object
+              - items
+    OrganizationList:
+      description: Success
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              object:
+                type: string
+                enum: [ Organization ]
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Organization'
+            required:
+              - object
+              - items
+    BranchList:
+      description: Success
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              object:
+                type: string
+                enum: [ Branch ]
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Branch'
+            required:
+              - object
+              - items
+    WorkspaceList:
+      description: Success
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              object:
+                type: string
+                enum: [ Workspace ]
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Workspace'
+            required:
+              - object
+              - items
+    CommitList:
+      description: Success
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              object:
+                type: string
+                enum: [ Commit ]
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Commit'
+            required:
+              - object
+              - items
+    FileEntryList:
+      description: Success
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              object:
+                type: string
+                enum: [ FileEntry ]
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FileEntry'
+              workspace_journal_ordinal_id:
+                $ref: '#/components/schemas/WorkspaceJournalOrdinalId'
+            required:
+              - object
+              - items
+    MergeList:
+      description: Success
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              object:
+                type: string
+                enum: [ Merge ]
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Merge'
+            required:
+              - object
+              - items
+    TagList:
+      description: A list of tag objects
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              object:
+                type: string
+                enum: [ Tag ]
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tag'
+            required:
+              - object
+              - items
+    ShelfList:
+      description: A list of shelf objects
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              object:
+                type: string
+                enum: [ Shelf ]
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Shelf'
+            required:
+              - object
+              - items
+    CollaboratorsList:
+      description: A list of collaborators and pending invites
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              collaborators:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Collaborator'
+              invites:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CollaborationInvite'
+    ComparisonList:
+      description: A list of tree comparison objects
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              object:
+                type: string
+                enum: [ ComparisonItem ]
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ComparisonItem'
+              cascaded_changes_count:
+                type: integer
+                format: int64
+                description: Number of cascaded changes, for insight of total compare size
+            required:
+              - object
+              - items
+              - cascaded_changes_count
+    Error:
+      description: An error occurred
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: The specified resource was not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: The request does not meet the required conditions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    PreconditionFailed:
+      description: The specified resource is no longer up to date
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    CommitInvalidPaths:
+      description: None of the commit paths exist
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Error'
+              - $ref: '#/components/schemas/FailedCommitPaths'
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    FailedDueToPendingChanges:
+      description: Operation failed due to pending changes on the resource
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Created:
+      description: Resource created
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/NewResourceId'
+    CommitCreated:
+      description: Commit created
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/NewCommit'
+    OKEmpty:
+      description: Request completed successfully
+    OKEmptyObject:
+      description: Request completed successfully
+      content:
+        application/json:
+          schema:
+            type: object
+    DetailedMerge:
+      description: An object describing the merge.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DetailedMerge'
+    ConflicIndex:
+      description: An object describing a file version of one side of a merge conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ConflictIndex'
+    Commit:
+      description: An object describing a commit
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Commit'
+    CommitsById:
+      description: An object describing a mapping of a commit by its ID
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties:
+              $ref: '#/components/schemas/Commit'
+    CustomRedirect:
+      description: Redirect to file contents
+      headers:
+        Last-Modified:
+          description: HTTP date when the file was last modified
+          example: Wed, 21 Oct 2015 07:28:00 GMT
+          schema:
+            type: string
+        Location:
+          description: URL to the location of the file
+          required: true
+          example: https://s3.amazonaws.com/b4bcacbb847681ac9fc372615a2206a4?X-Amz-Algorithm=AWS4-HMAC-SHA256
+          schema:
+            type: string
+        Expires:
+          description: HTTP date when the URL expires
+          example: Wed, 21 Oct 2015 07:28:00 GMT
+          schema:
+            type: string
+    FileHistoryResponse:
+      description: List of changes in the history of a versioned file
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              entries:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FileHistoryEntry'
+            required:
+              - entries
+  schemas:
+    BillingSession:
+      description: Information for a billing portal session where the user can view and modify their billing information
+      type: object
+      properties:
+        location:
+          type: string
+          description: The location of the billing portal session, treat as the `location` header in a HTTP 302 response
+          example: https://billing.diversion.dev/sessions/1234
+      required:
+        - location
+    GetUserTierResponse:
+      description: The tier of the user
+      type: object
+      properties:
+        tier:
+          $ref: '#/components/schemas/Tier'
+        has_stripe_customer:
+          type: boolean
+          description: Whether the user has a stripe customer
+      required:
+        - tier
+        - has_stripe_customer
+    Tier:
+      description: The tier of the user
+      type: string
+      # enum: [ "EDUCATION", "INDIE", "PROFESSIONAL", "ENTERPRISE" ]
+    TierWrapper:
+      description: A wrapper for the tier of the user
+      type: object
+      properties:
+        tier:
+          $ref: '#/components/schemas/Tier'
+      required:
+        - tier
+    Error:
+      type: object
+      properties:
+        status:
+          type: integer
+          description: HTTP status code
+          example: 403
+        detail:
+          type: string
+          example: User not authorized to perform the requested action on the resource
+        title:
+          type: string
+        type:
+          type: string
+      required:
+        - status
+        - detail
+    NewResourceId:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The id of the newly created resource
+          example: example_id
+      required:
+        - id
+    NewCommit:
+      allOf:
+        - $ref: '#/components/schemas/NewResourceId'
+        - $ref: '#/components/schemas/FailedCommitPaths'
+    FailedCommitPaths:
+      type: object
+      properties:
+        failed_paths:
+          type: array
+          nullable: true
+          items:
+            type: string
+          description: A list of paths that were not found/failed to commit
+    FileMode:
+      type: integer
+      # description: The file mode (as Unix mode)
+      # enum: [ 16877, 33188, 33261, 40960 ]
+      # x-ogen-enum-naming:
+      #   16877: FileMode_TREE
+      #   33188: FileMode_FILE
+      #   33261: FileMode_EXECUTABLE
+      #   40960: FileMode_SYMLINK
+    ObjectStatus:
+      type: integer
+      # enum: [ 1, 2, 3, 4 ]
+      # description: 'One of: 1 - INTACT, 2 - ADDED, 3 - MODIFIED, 4 - DELETED'
+      # x-ogen-enum-naming:
+      #   1: ObjectStatus_INTACT
+      #   2: ObjectStatus_ADDED
+      #   3: ObjectStatus_MODIFIED
+      #   4: ObjectStatus_DELETED
+    FileEntry:
+      type: object
+      properties:
+        path:
+          type: string
+          example: hello.cc
+        prev_path:
+          type: string
+          description: Optional hint in case the item was renamed or moved
+        hash:
+          type: string
+          example: 6fd9c4d3e03367130c3c5e296f5a6cf1e880fdfe
+          description: |
+            An opaque hash of the entry, defined by the backend.
+            The client should store it and provide it in update requests as prev_hash to detect conflicts.
+        prev_hash:
+          type: string
+          example: 327960059fb70e19eeb72ddea5b60807c4af58b7
+          description: The previous hash before this change. If this differs from the client version's hash, then it's a conflict.
+        status:
+          $ref: '#/components/schemas/ObjectStatus'
+        mode:
+          $ref: '#/components/schemas/FileMode'
+        mtime:
+          type: string
+          format: "date-time"
+        blob:
+          type: object
+          properties:
+            storage_uri:
+              $ref: '#/components/schemas/StorageUri'
+            storage_backend:
+              $ref: '#/components/schemas/StorageBackend'
+            size:
+              type: integer
+              format: int64
+              description: Size in bytes
+            sha:
+              type: string
+          required:
+            - storage_uri
+            - storage_backend
+            - size
+            - sha
+      required:
+        - path
+        - status
+        - mode
+    JournalEntry:
+      type: object
+      properties:
+        entry:
+          $ref: '#/components/schemas/FileEntry'
+        ordinal_id:
+          $ref: '#/components/schemas/WorkspaceJournalOrdinalId'
+      required:
+        - entry
+        - ordinal_id
+    BlobLocation:
+      type: object
+      properties:
+        storage_backend:
+          $ref: '#/components/schemas/StorageBackend'
+        storage_uri:
+          $ref: '#/components/schemas/StorageUri'
+      required:
+        - storage_backend
+        - storage_uri
+    BlobUploadUrl:
+      type: object
+      properties:
+        location:
+          $ref: '#/components/schemas/BlobLocation'
+        upload_url:
+          $ref: "#/components/schemas/PresignedUploadUrl"
+      required:
+        - location
+    BlobExistingUrl:
+      type: object
+      properties:
+        location:
+          $ref: '#/components/schemas/BlobLocation'
+      required:
+        - location
+    BlobMultipartUploadUrl:
+      type: object
+      properties:
+        location:
+          $ref: '#/components/schemas/BlobLocation'
+        upload_id:
+          type: string
+        part_urls:
+          type: array
+          items:
+            $ref: "#/components/schemas/PartNumberToUrl"
+      required:
+        - location
+        - upload_id
+        - part_urls
+    BlobSingleOrMultipartUploadUrl:
+      oneOf:
+        - $ref: "#/components/schemas/BlobExistingUrl"
+        - $ref: "#/components/schemas/BlobUploadUrl"
+        - $ref: "#/components/schemas/BlobMultipartUploadUrl"
+      discriminator:
+        propertyName: type
+    PartNumberToUrl:
+      type: object
+      properties:
+        part_number:
+          type: integer
+        upload_url:
+          type: string
+      required:
+        - part_number
+        - upload_url
+    CompletedMultipartUpload:
+      type: object
+      properties:
+        sha1:
+          type: string
+        upload_id:
+          type: string
+        parts:
+          type: array
+          items:
+            $ref: "#/components/schemas/CompletedPart"
+      required:
+        - sha1
+        - upload_id
+        - parts
+    CompletedPart:
+      type: object
+      properties:
+        part_number:
+          type: integer
+        validation_tag:
+          type: string
+      required:
+        - part_number
+        - validation_tag
+    PresignedUploadUrl:
+      type: object
+      properties:
+        url:
+          type: string
+          example: "https://dv-blobs.s3.amazonaws.com/"
+        fields:
+          type: object
+          properties:
+            x-amz-checksum-algorithm:
+              type: string
+              example: 'SHA1'
+            key:
+              type: string
+              example: repo_id/dv.blob.40630485-8f8f-4c34-b102-0072ca53ffba
+            x-amz-algorithm:
+              type: string
+              example: AWS4-HMAC-SHA256
+            x-amz-credential:
+              type: string
+              example: AKAKI6PFK43K4U6ASQ3V2/11111111/eu-central-1/s3/aws4_request
+            x-amz-date:
+              type: string
+              example: 20221130T095258Z
+            policy:
+              type: string
+              example: eyJleHBpcmF0aW9uIjogIjIwMjItMTEtMzBUMTA6NTI6NThaIiwgImNvbmRpdGlvbnMiOiBbeyJ4LWFtei1jaGVja3N1bS1hbGdvcml0aG0iOiAiU0hBMSJ9LCB7ImJ1Y2tldCI6ICJkdi1ibG9icyJ9LCB7ImtleSI6ICJyZXBvX2lkL2R2LmJsb2IuNDA2MzA0ODUtOGY4Zi00YzM0LWIxMDItMDA3MmNhNTNmZmJhIn0sIHsieC1hbXotYWx
+            x-amz-signature:
+              type: string
+              example: bc50d66096b27eb2bc4855ef59748f8dfba896529b11480daaa594097fc46713
+      required:
+        - url
+        - fields
+    CommitId:
+      type: object
+      properties:
+        commit_id:
+          type: string
+          example: example_id
+          minLength: 3
+          maxLength: 128
+      required:
+        - commit_id
+    Commit:
+      allOf:
+        - $ref: '#/components/schemas/CommitId'
+        - type: object
+          properties:
+            created_ts:
+              type: integer
+              description: Seconds since epoch UTC
+              format: int64
+            commit_message:
+              type: string
+            branch_id:
+              type: string
+              description: The branch on which this commit was created
+            author:
+              $ref: '#/components/schemas/User'
+              description: Details of the user who added the commit
+            parents:
+              type: array
+              description: List of parent commits of this commit
+              items:
+                type: string
+          required:
+            - created_ts
+            - branch_id
+            - author
+            - parents
+    CommitRequest:
+      allOf:
+        - $ref: '#/components/schemas/CommitMessage'
+        - type: object
+          description: Inclusion list of modified paths to commit. Other modifications will not be committed. If no list is provided, all modifications will be included.
+          properties:
+            include_paths:
+              $ref: '#/components/schemas/PathsList'
+    CommitMessage:
+      type: object
+      properties:
+        commit_message:
+          type: string
+          maxLength: 16384  # Limit in the db
+      required:
+        - commit_message
+    Collaborator:
+      type: object
+      properties:
+        collaboration_id:
+          type: string
+        user_id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        access_mode:
+          $ref: '#/components/schemas/AccessMode'
+      required:
+        - collaboration_id
+        - user_id
+        - access_mode
+    CollaborationInvite:
+      type: object
+      properties:
+        invite_id:
+          type: integer
+          example: 17
+        inviting_user_id:
+          type: string
+        invited_email:
+          type: string
+          format: email
+        access_mode:
+          $ref: '#/components/schemas/AccessMode'
+        created:
+          type: string
+          format: date-time
+        expires:
+          type: string
+          format: date-time
+      required:
+        - invite_id
+        - inviting_user_id
+        - invited_email
+        - access_mode
+        - created
+        - expires
+    CollaborationInviteRequest:
+      type: object
+      properties:
+        collaborator_handle:
+          type: string
+          example: user@domain.com
+          minLength: 3
+          maxLength: 255
+          description: >
+            A user ID or email. User IDs are preferred, but an email can be used to invite a new collaborator who does not
+            have an account or whose user ID is unknown.
+        mode:
+          $ref: '#/components/schemas/AccessMode'
+      required:
+        - collaborator_handle
+        - mode
+    CollaborationRequest:
+      type: object
+      properties:
+        mode:
+          $ref: '#/components/schemas/AccessMode'
+      required:
+        - mode
+    AccessMode:
+      type: string
+      # enum: [ READ, WRITE, ADMIN, OWNER ]
+    NewBranch:
+      allOf:
+        - $ref: '#/components/schemas/CommitId'
+        - type: object
+          properties:
+            branch_name:
+              type: string
+              example: new-branch-name
+              minLength: 1
+              maxLength: 128
+            branch_description:
+              type: string
+              example: 'A description of the branch'
+          required:
+            - branch_name
+    NewWorkspace:
+      type: object
+      properties:
+        branch_id:
+          type: string
+        name:
+          type: string
+        commit_id:
+          type: string
+          example: example_id
+          minLength: 3
+          maxLength: 128
+    WorkspaceRename:
+      type: object
+      description: Properties to modify in an existing workspace
+      properties:
+        name:
+          type: string
+          description: A name to set for the workspace
+          minLength: 1
+      required:
+        - name
+    WorkspaceCheckout:
+      type: object
+      description: Properties to modify in an existing workspace
+      properties:
+        ref_id:
+          type: string
+          description: A branch or commit ID to point the workspace onto
+      required:
+        - ref_id
+    WorkspacePreferences:
+      type: object
+      description: Preferences associated with a user for a workspace
+      properties:
+        sync_paths_rules:
+          description: List of rules setting which paths to sync, an empty list means sync all
+          type: array
+          items:
+            type: string
+      required:
+        - sync_paths_rules
+    RefsFilesStatus:
+      type: object
+      description: Status of files in multiple refs
+      properties:
+        statuses:
+          type: array
+          items:
+            $ref: '#/components/schemas/RefsFileStatus'
+      required:
+        - statuses
+    RefsFileStatus:
+      type: object
+      description: Status of a file in multiple refs
+      properties:
+        path:
+          description: File path
+          type: string
+        file_statuses:
+          description: Details of changes of the file per relevant workspace
+          type: array
+          items:
+            $ref: '#/components/schemas/RefFileStatus'
+      required:
+        - path
+        - file_statuses
+    RefFileStatus:
+      type: object
+      description: Changes on some file in some ref
+      properties:
+        workspace_id:
+          description: ID of the workspace, if applicable
+          type: string
+        commit_id:
+          description: ID of the commit the ref is based on
+          type: string
+        branch_id:
+          description: ID of the branch or of the branch on which the workspace is based on, if applicable
+          type: string
+        branch_name:
+          description: Name of the branch, if applicable
+          type: string
+        status:
+          $ref: '#/components/schemas/ObjectStatus'
+        author:
+          $ref: '#/components/schemas/User'
+        mtime:
+          type: integer
+          description: Seconds since epoch UTC
+          format: int64
+      required:
+        - commit_id
+        - status
+        - author
+    Branch:
+      allOf:
+        - $ref: '#/components/schemas/NewBranch'
+        - type: object
+          properties:
+            branch_id:
+              description: Branch identifier in Diversion
+              type: string
+            author:
+              $ref: '#/components/schemas/User'
+            time:
+              description: Creation time
+              type: number
+              format: int64
+          required:
+            - branch_id
+            - author
+            - time
+    Tag:
+      allOf:
+        - $ref: '#/components/schemas/CreateTag'
+        - type: object
+          properties:
+            id:
+              description: Tag identifier in Diversion
+              type: string
+            author:
+              $ref: '#/components/schemas/User'
+            time:
+              description: Creation time
+              type: number
+              format: int64
+          required:
+            - id
+            - author
+            - time
+    CreateTag:
+      type: object
+      properties:
+        name:
+          description: Display name of the tag
+          type: string
+        commit_id:
+          description: Commit ID that the tag references
+          type: string
+        description:
+          description: More information about the tag
+          type: string
+      required:
+        - name
+        - commit_id
+    ModifyTag:
+      type: object
+      properties:
+        name:
+          description: Display name of the tag
+          type: string
+        description:
+          description: More information about the tag
+          type: string
+        commit_id:
+          description: Commit ID that the tag references
+          type: string
+    Shelf:
+      type: object
+      properties:
+        id:
+          description: Shelf identifier in Diversion
+          type: string
+        name:
+          description: Display name of the shelf
+          type: string
+        created_timestamp:
+          type: integer
+          description: Seconds since epoch UTC
+          format: int64
+        branch_id:
+          description: Optional branch ID from which the changes were shelved
+          type: string
+      required:
+        - id
+        - name
+        - created_timestamp
+    CreateShelf:
+      type: object
+      properties:
+        name:
+          description: Display name of the shelf
+          type: string
+        workspace_id:
+          description: Workspace ID from which to shelve changes
+          type: string
+        reset_workspace:
+          description: Should reset workspace changes after creating the shelf
+          type: boolean
+          default: true
+      required:
+        - name
+        - workspace_id
+    ApplyShelf:
+      type: object
+      properties:
+        workspace_id:
+          description: Workspace ID on which to apply the shelved changes
+          type: string
+        delete_shelf:
+          description: Should shelf be deleted after applying it
+          type: boolean
+          default: false
+      required:
+        - workspace_id
+    NewRepo:
+      type: object
+      properties:
+        repo_name:
+          type: string
+          example: repo-name
+          minLength: 1
+          maxLength: 128
+        description:
+          type: string
+      required:
+        - repo_name
+    Repo:
+      allOf:
+        - $ref: "#/components/schemas/NewRepo"
+        - type: object
+          properties:
+            repo_id:
+              type: string
+              example: example_id
+            default_branch_id:
+              type: string
+            default_branch_name:
+              type: string
+            size_bytes:
+              type: number
+              format: float
+            owner_user_id:
+              type: string
+            created_timestamp:
+              type: integer
+              description: Seconds since epoch UTC
+              format: int64
+            sync_git_repo_url:
+              type: string
+              description: Optional URL of the git repository being synced with the repo
+            sync_git_level:
+              $ref: '#/components/schemas/GitSyncLevel'
+            organization_id:
+              type: string
+              description: Optional organization ID to which the repo belongs to
+          required:
+            - repo_name
+            - repo_id
+            - size_bytes
+            - owner_user_id
+            - created_timestamp
+    CreateOrganization:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Example Organization"
+          minLength: 1
+          maxLength: 128
+      required:
+        - name
+    Organization:
+      allOf:
+        - $ref: '#/components/schemas/CreateOrganization'
+        - type: object
+          properties:
+            id:
+              type: string
+              description: Unique identifier for the organization
+              example: "org_123456"
+            name:
+              type: string
+              description: Name of the organization
+              example: "Example Organization"
+            description:
+              type: string
+              description: Description of the organization
+              example: "This is an example organization."
+            owner_id:
+              type: string
+              description: ID of the user who owns the organization
+              example: "user_123456"
+            total_storage:
+              type: integer
+              description: Total storage allocated to the organization
+              example: 1000000
+            subscriptions:
+              type: array
+              items:
+                $ref: '#/components/schemas/OrganizationSubscription'
+              description: List of subscriptions associated with the organization
+            members:
+              type: array
+              items:
+                $ref: '#/components/schemas/OrganizationMember'
+              description: List of members in the organization
+            invites:
+              type: array
+              items:
+                $ref: '#/components/schemas/OrganizationInvite'
+              description: List of invites sent by the organization
+          required:
+            - id
+            - name
+            - owner_id
+            - total_storage
+    #            Other fields are optional, we may decide to return them in the future
+    OrganizationSubscription:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the organization subscription
+          example: "sub_123456"
+        organization_id:
+          type: string
+          description: ID of the organization
+          example: "org_123456"
+        subscription_type:
+          type: string
+          description: Type of the subscription
+          enum:
+            - STORAGE_GB
+            - USERS
+          example: "STORAGE_GB"
+        amount:
+          type: integer
+          description: Amount of the subscription
+          example: 100
+        grace_period_start:
+          type: string
+          format: date-time
+          description: Start of the grace period
+          example: "2023-01-01T00:00:00Z"
+        grace_period_end:
+          type: string
+          format: date-time
+          description: End of the grace period
+          example: "2023-01-31T00:00:00Z"
+      required:
+        - id
+        - organization_id
+        - subscription_type
+        - amount
+    OrganizationMember:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the organization member
+          example: "member_123456"
+        user_id:
+          type: string
+          description: ID of the user who is a member of the organization
+          example: "user_123456"
+        organization_id:
+          type: string
+          description: ID of the organization
+          example: "org_123456"
+        role:
+          $ref: '#/components/schemas/AccessMode'
+      required:
+        - id
+        - user_id
+        - organization_id
+        - role
+    OrganizationInvite:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the organization invite
+          example: "invite_123456"
+        organization_id:
+          type: string
+          description: ID of the organization
+          example: "org_123456"
+        inviting_user_id:
+          type: string
+          description: ID of the user who is inviting to the organization
+          example: "user_123456"
+        invited_email:
+          type: string
+          format: email
+          description: Email of the user who is invited to the organization
+        status:
+          type: string
+          description: Status of the invite
+          enum:
+            - PENDING
+            - ACCEPTED
+            - REJECTED
+          example: "PENDING"
+        created:
+          type: string
+          format: date-time
+          description: Date and time when the invite was created
+          example: "2023-01-01T00:00:00Z"
+        expires:
+          type: string
+          format: date-time
+          description: Date and time when the invite expires
+          example: "2023-01-31T00:00:00Z"
+
+    Workspace:
+      type: object
+      properties:
+        workspace_id:
+          type: string
+        name:
+          type: string
+          maxLength: 128
+        source_commit:
+          type: string
+        branch_id:
+          type: string
+        base_commit_id:
+          type: string
+        repo_id:
+          type: string
+        journal_ordinal_id:
+          $ref: '#/components/schemas/WorkspaceJournalOrdinalId'
+        client_id:
+          type: string
+      required:
+        - workspace_id
+        - base_commit_id
+        - repo_id
+        - journal_ordinal_id
+    WorkspaceJournalOrdinalId:
+      type: integer
+      format: uint64
+      description: An ordinal ID of a workspace journal entry
+    MergeId:
+      type: object
+      properties:
+        merge_id:
+          type: string
+          example: example_id
+          minLength: 3
+          maxLength: 128
+      required:
+        - merge_id
+    Conflict:
+      type: object
+      properties:
+        conflict_id:
+          type: string
+        is_resolved:
+          type: boolean
+        resolved_side:
+          type: string
+          enum: [ RESULT, BASE, OTHER ]
+        base:
+          $ref: "#/components/schemas/ConflictIndex"
+        other:
+          $ref: "#/components/schemas/ConflictIndex"
+        result:
+          $ref: "#/components/schemas/ConflictIndex"
+      required:
+        - conflict_id
+        - is_resolved
+        - base
+        - other
+    ConflictIndex:
+      type: object
+      description: >
+        A index in a conflict, could be representing either "base", "other" or "result".
+        If the index does not represent "result", then all properties besides "prev_path" can be considered 'required'.
+      required:
+        - conflict_index_id
+        - file_mode
+        - path
+        - type
+      properties:
+        conflict_index_id:
+          type: string
+          enum: [ RESULT, BASE, OTHER ]
+        file_mode:
+          $ref: '#/components/schemas/FileMode'
+        path:
+          type: string
+        prev_path:
+          type: string
+        type:
+          $ref: '#/components/schemas/ObjectStatus'
+        storage_backend:
+          $ref: '#/components/schemas/StorageBackend'
+        storage_uri:
+          $ref: '#/components/schemas/StorageUri'
+        size:
+          type: integer
+          format: int64
+          description: Size in bytes
+
+    CustomRedirectResponse:
+      description: A redirect that needs to be followed in a different HTTP context than the original request.
+      type: object
+      properties:
+        result_url:
+          type: string
+        timeout_sec:
+          type: integer
+      required:
+        - result_url
+        - timeout_sec
+    AsyncResponse:
+      description: Response with the location of the result of an asynchronous processing of the request
+      allOf:
+        - $ref: "#/components/schemas/CustomRedirectResponse"
+        - type: object
+          properties:
+            status:
+              type: integer
+            ref_id:
+              type: string
+            poll_interval_sec:
+              type: integer
+          required:
+            - status
+            - ref_id
+    WorkspaceStatus:
+      description: >
+        The status of the workspace, meaning its bill of changes.
+        It will contain the total number of changed items and specifically changed files.
+        If paths details were requested, it will also contain an object having 'new', 'modified', 'deleted' arrays of file entries, sorted lexicographically.
+      type: object
+      properties:
+        changed_items_count:
+          type: number
+          description: Number of changed items of all types
+        changed_files_count:
+          type: number
+          description: Number of changed files
+        incomplete_result:
+          type: boolean
+          description: The result list was trimmed and the counts are a lower bound only
+        items:
+          type: object
+          description: Drill down into modified items by change type
+          properties:
+            new:
+              type: array
+              items:
+                $ref: '#/components/schemas/FileEntry'
+            modified:
+              type: array
+              items:
+                $ref: '#/components/schemas/FileEntry'
+            deleted:
+              type: array
+              items:
+                $ref: '#/components/schemas/FileEntry'
+          required:
+            - new
+            - modified
+            - deleted
+        conflicts:
+          type: array
+          nullable: true
+          description: List of conflicted file paths, compared to the base branch, if applicable
+          items:
+            type: string
+      required:
+        - changed_items_count
+        - changed_files_count
+    NeedLogsOutput:
+      type: object
+      properties:
+        need_logs:
+          type: boolean
+          description: Do we want the logs uploaded or not
+      required:
+        - need_logs
+    WorkspaceUpdates:
+      description: A list of modification operations done on the workspace.
+      type: object
+      properties:
+        journal:
+          type: array
+          items:
+            $ref: '#/components/schemas/JournalEntry'
+        commit_id:
+          type: string
+          description: Latest commit the workspace is checkout out on
+        branch_id:
+          type: string
+          description: Which branch the workspace is checked out on, or none if detached
+        base_commit_id:
+          type: string
+          description: The commit ID the workspace is based on, whether checket out on branch or commit
+        incomplete_response:
+          type: boolean
+          description: More results are available, call the endpoint again with the latest revision from this response
+      required:
+        - journal
+        - base_commit_id
+        - incomplete_response
+    ClientUpdates:
+      description: A list of updates sent by the client
+      type: object
+      properties:
+        updates:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClientUpdate'
+      required: [ updates ]
+    ClientUpdate:
+      description: A single update sent by the client
+      type: object
+      properties:
+        transaction_id:
+          type: string
+        file_entry:
+          $ref: '#/components/schemas/FileEntry'
+      required: [ transaction_id, file_entry ]
+    ClientUpdateResults:
+      description: A list of update results returned to the client
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClientUpdateResult'
+      required: [ results ]
+    ClientUpdateResult:
+      description: A single update result returned to the client
+      type: object
+      properties:
+        transaction_id:
+          type: string
+        success:
+          type: boolean
+        error_msg:
+          type: string
+        status_code:
+          type: integer
+      required: [ transaction_id, success ]
+    ResetStatus:
+      description: Response of a reset command.
+      type: object
+      properties:
+        success:
+          description: Paths that were successfully reset.
+          type: array
+          items:
+            type: string
+        fail:
+          description: Paths that were not found.
+          type: array
+          items:
+            type: string
+        skipped:
+          description: Paths that were not reset.
+          type: array
+          items:
+            type: string
+      required:
+        - success
+        - fail
+        - skipped
+    Merge:
+      description: Describes a merge in progress with conflicts
+      type: object
+      properties:
+        id:
+          type: string
+        repo_id:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+        base_ref:
+          type: string
+        other_ref:
+          type: string
+        ancestor_commit:
+          type: string
+        base_journal_ordinal_id:
+          type: integer
+      required:
+        - id
+        - repo_id
+        - user
+        - base_ref
+        - other_ref
+        - ancestor_commit
+    DetailedMerge:
+      allOf:
+        - $ref: '#/components/schemas/Merge'
+        - type: object
+          properties:
+            conflicts:
+              type: array
+              items:
+                $ref: '#/components/schemas/Conflict'
+          required:
+            - conflicts
+    ComparisonItem:
+      description: Describes a comparison result at a single path. At least one of base/other items must be present.
+      type: object
+      properties:
+        base_item:
+          $ref: '#/components/schemas/FileEntry'
+        other_item:
+          $ref: '#/components/schemas/FileEntry'
+        status:
+          $ref: '#/components/schemas/ObjectStatus'
+      required:
+        - status
+    User:
+      description: User details
+      type: object
+      properties:
+        image:
+          type: string
+          description: URL of the user image
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+        id:
+          type: string
+        name:
+          type: string
+      required:
+        - id
+    FileHistoryEntry:
+      description: A change in the history of a versioned item along with the relevant commit
+      type: object
+      properties:
+        entry:
+          $ref: '#/components/schemas/FileEntry'
+        commit:
+          $ref: '#/components/schemas/Commit'
+      required:
+        - entry
+        - commit
+    GitRepoImport:
+      description: Details of a git repo to import into Diversion
+      type: object
+      properties:
+        git_url:
+          description: URL to the git repo. May be omitted if repo_id already has it set.
+          type: string
+        import_level:
+          $ref: '#/components/schemas/GitSyncLevel'
+        git_branch:
+          description: The name of the branch to import from git (default branch is taken if not specified)
+          type: string
+    RecommendationRequest:
+      description: The parameters needed for sending recommendations to friends
+      type: object
+      properties:
+        user_display_name:
+          description: The display name of the user
+          type: string
+        user_message:
+          description: an optional user message to the recommendation email
+          type: string
+        emails:
+          description: A list of emails to send the recommendation to
+          type: array
+          items:
+            type: string
+            format: email
+      required:
+        - emails
+    AnalyticsEvents:
+      description: A list of analytics events
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalyticsEvent'
+      required:
+        - events
+    AnalyticsEvent:
+      description: An analytics event
+      type: object
+      properties:
+        event:
+          type: string
+          description: Event name
+        source:
+          type: string
+          description: Event source
+        time:
+          type: string
+          format: date-time
+        properties:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+        - event
+        - source
+        - time
+        - properties
+    AnalyticsIdentify:
+      description: An analytics identification event
+      type: object
+      properties:
+        source:
+          type: string
+          description: Event source
+        time:
+          type: string
+          format: date-time
+        anonymous_id:
+          type: string
+      required:
+        - source
+        - time
+    StorageBackend:
+      type: integer
+      # enum: [ 1, 2 ]
+      # description: "One of: 1 - EFS, 2 - S3"
+      # x-ogen-enum-naming:
+      #   1: StorageBackend_EFS
+      #   2: StorageBackend_S3
+    StorageUri:
+      type: string
+      description: "Coupled with storage_backend, a uri to storage location"
+      example: "repo_id/2aae6c35c94fcfb415dbe95f408b9ce91ee846ed"
+    PathsList:
+      description: Inclusion list of paths to include in the operation. If null, all paths will be included.
+      type: array
+      nullable: true
+      minItems: 1
+      items:
+        type: string
+        description: A relative path to a file or directory inside the repository.
+        minLength: 1
+    GitSyncLevel:
+      type: integer
+      # enum: [ 1, 2, 3, 4 ]
+      # default: 4
+      # description: "One of: 1 - latest commit of default branch, 2 - default branch with history, 3 - full repo with history, 4 - full repo with history and sync [default]"
+      # x-ogen-enum-naming:
+      #   1: GitSyncLevel_LatestCommit
+      #   2: GitSyncLevel_DefaultBranch
+      #   3: GitSyncLevel_FullRepo
+      #   4: GitSyncLevel_FullRepoWithSync
+    UrgencyLevel:
+      description: "The urgency level of the issue; 0 - Not Set, 1- Low, 2 - Normal, 3 - High, 4 - Urgent"
+      type: integer
+      # enum: [ 0, 1, 2, 3, 4 ]
+      default: 0
+    ErrorReport:
+      type: object
+      properties:
+        source:
+          type: string
+          description: Name of the source of the error
+        error:
+          type: string
+          description: Error message
+        stack:
+          type: string
+          description: Stack trace
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "notification_id"
+        message:
+          type: string
+          example: "Your 2 weeks trial gives you limitless access to all features, take it to the limit"
+        type:
+          type: string
+          enum: [ "trial", "success", "info", "warning", "error" ]
+          description: Type of the notification, will be used to determine the styling of the notification on the FE
+        dismissible:
+          type: boolean
+          example: true
+          description: If the notification can be dismissed by the user
+          default: true
+      required:
+        - id
+        - message
+        - type
+        - dismissible
+  parameters:
+    OwnerParam:
+      in: path
+      name: owner_id
+      required: true
+      schema:
+        type: string
+        example: example_id
+        minLength: 3
+        maxLength: 128
+      description: >
+        The owner ID of the repository, either organization or user. Owner _name_ can be used instead of the ID, but
+        usage of ID for permanent link storage and API requests is preferred.
+    InviteIdParam:
+      in: path
+      name: invite_id
+      required: true
+      schema:
+        type: integer
+        example: 17
+      description: >
+        Invite ID, as returned by a previous call
+    CollaboratorParam:
+      in: path
+      name: collaborator_handle
+      required: true
+      schema:
+        type: string
+        example: example_id
+        minLength: 3
+        maxLength: 255
+      description: >
+        A user ID or email. User IDs are preferred, but an email can be used to invite a new collaborator who does not
+        have an account or whose user ID is unknown.
+    RepoParam:
+      in: path
+      name: repo_id
+      required: true
+      schema:
+        type: string
+        example: example_id
+        minLength: 3
+        maxLength: 128
+      description: >-
+        The repo ID of the repository. Repo _name_ can be used instead of the ID, but
+        usage of ID for permanent linking and API requests is preferred.
+    WorkspaceParam:
+      in: path
+      name: workspace_id
+      required: true
+      schema:
+        type: string
+        example: example_id
+        minLength: 3
+        maxLength: 128
+      description: >-
+        The repo ID of the workspace.
+    BranchParam:
+      in: path
+      name: branch_id
+      description: >-
+        Branch ID. Branch _name_ can be used instead of the ID, but storing and using branch ID in API requests
+        is preferred.
+      schema:
+        type: string
+        example: example_id
+        minLength: 3
+        maxLength: 128
+      required: true
+    TagParam:
+      in: path
+      name: tag_id
+      description: Tag identifier
+      schema:
+        type: string
+        example: dv.tag.12a37e91-bfc4-4e03-a330-13b5b84ab7cb
+        minLength: 3
+        maxLength: 128
+      required: true
+    ShelfIdParam:
+      in: path
+      name: shelf_id
+      description: Shelf identifier
+      schema:
+        type: string
+        example: dv.shelf.12a37e91-bfc4-4e03-a330-13b5b84ab7cb
+        minLength: 3
+        maxLength: 128
+      required: true
+    BaseRefParam:
+      in: query
+      name: base_id
+      description: >-
+        A reference to a base unto which changes will be applied
+      schema:
+        type: string
+        example: example_id
+        minLength: 3
+        maxLength: 128
+    OtherRefParam:
+      in: query
+      name: other_id
+      description: >-
+        A reference to a source version from which changes will be taken
+      schema:
+        type: string
+        example: example_id
+        minLength: 3
+        maxLength: 128
+    RevertRefParam:
+      in: query
+      name: revert_ref_id
+      description: >-
+        A reference to a source version to revert, currently only commit ID is supported
+      schema:
+        type: string
+        example: example_id
+        minLength: 3
+        maxLength: 128
+    RefParam:
+      in: path
+      name: ref_id
+      schema:
+        type: string
+        example: example_id
+        minLength: 3
+        maxLength: 128
+      required: true
+      description: An ID of a workspace, branch or commit.
+    PathParam:
+      in: path
+      name: path
+      schema:
+        type: string
+        format: path
+        example: /path/to/file
+      required: true
+      description: A path to an item inside the repository.
+    OptionalPathParam:
+      in: query
+      name: path
+      schema:
+        type: string
+        format: path
+        example: /path/to/file
+      description: Optional path to an item inside the repository.
+    ConflictIdParam:
+      in: path
+      required: true
+      name: conflict_id
+      schema:
+        type: string
+      description: An identifier of a conflict retrieved in conflicts property of GET /repos/{repo_id}/merges/{merge_id}
+    ConflictIndexIdParam:
+      in: query
+      required: true
+      name: index_id
+      schema:
+        type: string
+      description: An identifier of a conflict index retrieved in conflicts property of GET /repos/{repo_id}/merges/{merge_id}
+    MtimeParam:
+      in: query
+      name: mtime
+      description: The file's modification time in seconds since epoch
+      required: true
+      schema:
+        type: integer
+        format: int64
+    ModeParam:
+      in: query
+      name: mode
+      description: The file mode (as Unix mode)
+      required: true
+      schema:
+        $ref: '#/components/schemas/FileMode'
+    UserIdParam:
+      in: path
+      name: user_id
+      schema:
+        type: string
+        example: Google_1192874509253
+        minLength: 3
+      required: true
+      description: A user's ID
+    MergeParam:
+      in: path
+      name: merge_id
+      schema:
+        type: string
+        example: example_id
+        minLength: 3
+        maxLength: 128
+      required: true
+      description: An ID of a merge attempt
+    ClientIDParam:
+      in: header
+      name: X-Dv-Client-Id
+      description: The unique id of the client making this request
+      required: true
+      schema:
+        type: string
+    IsUploadingParam:
+      in: header
+      name: X-Dv-Has-Uploads
+      description: Indicating that the client has unfinished uploads
+      schema:
+        type: boolean
+    HostNameParam:
+      in: header
+      name: X-Dv-Host-Name
+      description: Client's host name
+      schema:
+        type: string
+    CommitParam:
+      in: path
+      name: commit_id
+      schema:
+        type: string
+        example: dv.commit.350e1bc3-52dc-4659-9817-7ce8f3fdf628
+        minLength: 3
+        maxLength: 128
+      required: true
+      description: A commit ID
+    ObjectIdParam:
+      in: path
+      name: object_id
+      schema:
+        type: string
+        example: example_id
+        minLength: 3
+        maxLength: 128
+      required: true
+      description: An ID of a versioned item
+    StorageBackendParam:
+      in: query
+      name: storage_backend
+      description: "An optional storage type for async upload."
+      schema:
+        $ref: '#/components/schemas/StorageBackend'
+    StorageUriParam:
+      in: query
+      name: storage_uri
+      description: "An optional storage uri to be sent along storage_backend."
+      schema:
+        $ref: '#/components/schemas/StorageUri'
+    SizeParam:
+      in: query
+      name: size
+      description: "Blob size in bytes"
+      schema:
+        type: integer
+        format: int64
+    RequiredSizeParam:
+      in: query
+      name: size
+      description: "Blob size in bytes"
+      schema:
+        type: integer
+        format: int64
+      required: true
+    SHA1Param:
+      in: query
+      name: sha1
+      description: "A sha1 hexdigest"
+      example: 7d76d48d64d7ac5411d714a4bb83f37e3e5b8df6
+      schema:
+        type: string
+    RequiredSHA1Param:
+      in: query
+      name: sha1
+      description: "A sha1 hexdigest"
+      example: 7d76d48d64d7ac5411d714a4bb83f37e3e5b8df6
+      schema:
+        type: string
+      required: true
+    FileWalkRecurseParam:
+      in: query
+      name: recurse
+      schema:
+        type: boolean
+        default: true
+      description: Specifies if to recursively iterate file tree to next directory levels
+    IgnoreJournalOrdinalDifference:
+      in: query
+      name: ignore_journal_ordinal_diff
+      schema:
+        type: boolean
+        default: false
+      description: Specifies if to ignore the journal ordinal id difference and potentially return intermediate state
+    AllowTrim:
+      in: query
+      name: allow_trim
+      schema:
+        type: boolean
+        default: true
+      description: Specifies if the results should be full or readable by a user
+    FileEntriesLimit:
+      in: query
+      name: limit
+      schema:
+        type: integer
+        example: 17
+        minimum: 1
+        default: 1500
+      description: Limit the number of entries returned from walk
+    FileEntriesSkip:
+      in: query
+      name: skip
+      schema:
+        type: integer
+        example: 17
+        minimum: 0
+      description: Filters the first entries returned from walk
+    DirOffsetItemName:
+      in: query
+      name: offset
+      schema:
+        type: string
+        example: file.ext
+      description: Offset item name in directory when iterating its entries (non-inclusive)
+    WorkspaceJournalOrdinalIdParam:
+      in: query
+      name: workspace_journal_ordinal_id
+      schema:
+        $ref: '#/components/schemas/WorkspaceJournalOrdinalId'
+      description: The ordinal ID of the journal entry the walk references, if applicable
+    TreeItemNameQueryParam:
+      in: query
+      name: item_name_query
+      schema:
+        type: string
+        example: abcd
+        minLength: 3
+        maxLength: 128
+      description: A query string to test against item name, only matching items will be collected
+    IncludeDeletedItemsParam:
+      in: query
+      name: include_deleted
+      schema:
+        type: boolean
+        default: false
+      description: Should the tree contain also deleted items or omit them from response
+    DetailWorkspaceStatusItems:
+      in: query
+      name: detail_items
+      schema:
+        type: boolean
+        default: true
+      description: Should detail all the changed items in status response
+    PageLimit:
+      in: query
+      name: limit
+      schema:
+        type: integer
+        example: 17
+        minimum: 1
+        default: 100
+      description: Limit the number or items returned from a listing api
+    PageSkip:
+      in: query
+      name: skip
+      schema:
+        type: integer
+        example: 17
+        minimum: 0
+      description: Skip a number of items returned from a listing api
+    PageQuery:
+      in: query
+      name: query
+      schema:
+        type: string
+        example: "foo"
+        minLength: 3
+        maxLength: 64
+      description: A string query to filter against in a listing api
+    PathPrefixParam:
+      in: query
+      name: path_prefix
+      schema:
+        type: string
+        format: path
+        example: path/to/file
+      description: A path prefix in the file tree to walk under
+    PathPrefixesParam:
+      in: query
+      name: path_prefixes
+      schema:
+        type: array
+        items:
+          type: string
+          format: path
+          example: path/to/file
+      description: A list of prefixes in the file tree to walk under
+    DirsOnlyParam:
+      in: query
+      name: dirs_only
+      schema:
+        type: boolean
+        default: false
+      description: Return only directories in the file tree walk
+    UseSelectiveSyncParam:
+      in: query
+      name: use_selective_sync
+      schema:
+        type: boolean
+        default: true
+      description: Return the results filtered by the workspace preferences for selective sync
+    MaxDepthParam:
+      in: query
+      name: max_depth
+      schema:
+        type: integer
+        default: 1
+    OrgParam:
+      in: path
+      name: org_id
+      schema:
+        type: integer
+      required: true
+      description: An ID of an organization

@@ -1,8 +1,5 @@
 class APondGameState : AGameStateBase
 {
-    UPROPERTY(Category = "Players", Replicated)
-    TArray<FPlayerSelectionData> PlayerSelections;
-    
     UPROPERTY(Category = "Run")
     UDataTable EnchantmentsPool;
 

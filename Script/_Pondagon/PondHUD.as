@@ -1,5 +1,7 @@
 class APondHUD : AAbilitySystemDebugHUD
 {
+    default bShowHUD = true;
+    
     UPROPERTY(Category = "Material")
     UMaterialInterface SteamMaterial;
 
@@ -28,8 +30,8 @@ class APondHUD : AAbilitySystemDebugHUD
         
         Msg = f"{PlayerName}\nClient ID: {ID}\nPing: {PingMS:.0}ms\nAuthority: {AuthorityStr}";
         /*\nLocalRole: {LocalRoleStr}\nRemoteRole: {RemoteRoleStr}";*/
-        DrawText(Msg, FLinearColor::DPink, 5, (SizeY - 95));
+        DrawText(Msg, FLinearColor::DPink, 5, (SizeY - 65));
 
-        DrawMaterialSimple(AdvancedSessions::HasOnlineSubsystem(n"STEAM") ? SteamMaterial : ClientMaterial, 0, 0, 64, 64);
+        DrawMaterialSimple(AdvancedSessions::HasSteamConnection() ? SteamMaterial : ClientMaterial, 0, SizeY - 125, 64, 64);
 	}
 }

@@ -4,7 +4,7 @@ class AScriptPondCharacter : APondCharacter
 	default bReplicates = true;
 	default bReplicateMovement = true;
 
-	UPROPERTY(Category = "Entity", EditDefaultsOnly)
+	UPROPERTY(Category = "Entity", EditDefaultsOnly, VisibleInstanceOnly)
 	UEntityDefinition Definition;
 
 	UPROPERTY(Category = "Entity", VisibleInstanceOnly)
@@ -53,6 +53,8 @@ class AScriptPondCharacter : APondCharacter
 	UFUNCTION(BlueprintOverride)
 	void Possessed(AController NewController)
 	{
+		ThrowIf(AbilitySystem == nullptr, "AbilitySystem is nullptr!\nMake sure to call this AFTER the ability system has been initialized.");
+
 		for (auto& StartingAbility : Definition.StartingAbilities)
 		{
 			AbilitySystem.GiveAbility(StartingAbility, 1, -1, nullptr);

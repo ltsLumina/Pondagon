@@ -1,0 +1,80 @@
+{
+	"FileVersion": 3,
+	"Version": 130,
+	"VersionName": "2.0.6",
+	"FriendlyName": "Diversion Version Control",
+	"Description": "Diversion - Cloud-Native Version Control",
+	"Category": "Version Control",
+	"CreatedBy": "Diversion Company, Inc.",
+	"CreatedByURL": "https://www.diversion.dev/",
+	"DocsURL": "https://docs.diversion.dev/unreal-engine-plugin?utm_source=ue-plugin&utm_medium=plugin",
+	"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/7c8abd783acd4d66a5290a12a5d67523",
+	"SupportURL": "https://www.diversion.dev/plugin-support",
+	"EnabledByDefault": true,
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"Installed": false,
+	"EngineVersion": "5.7.0",
+	"Modules": [
+		{
+			"Name": "Common",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit",
+			"PlatformAllowList": [
+				"Win64",
+				"Mac"
+			]
+		},
+		{
+			"Name": "Diversion",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit",
+			"PlatformAllowList": [
+				"Win64",
+				"Mac"
+			]
+		},
+		{
+			"Name": "AgentAPI",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit",
+			"PlatformAllowList": [
+				"Win64",
+				"Mac"
+			]
+		},
+		{
+			"Name": "CoreAPI",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit",
+			"PlatformAllowList": [
+				"Win64",
+				"Mac"
+			]
+		},
+		{
+			"Name": "DiversionHttp",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit",
+			"PlatformAllowList": [
+				"Win64",
+				"Mac"
+			]
+		},
+		{
+			"Name": "ChangesWatcher",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"AdditionalDependencies": [
+				"DirectoryWatcher"
+			]
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "DataValidation",
+			"Enabled": true
+		}
+	],
+	"Sealed": true
+}

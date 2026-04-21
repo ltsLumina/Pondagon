@@ -1,6 +1,5 @@
-class APondGameMode : AGameMode
+class APondGameMode : AGameModeBase
 {
-	default MaxInactivePlayers = 3;
 	default bUseSeamlessTravel = true;
 	default bPauseable = true;
 

@@ -3,12 +3,12 @@ class UCharSelectWidget : UPondWidgetBase
 	UPROPERTY(BindWidget)
 	UHorizontalBox PlayersBox;
 
-	APondGameState GameState;
+	APondMenuGameState GameState;
 
 	UFUNCTION(BlueprintOverride)
 	void Construct()
 	{
-		GameState = Pond::GetPondGameStateBase();
+		GameState = Cast<APondMenuGameState>(Gameplay::GameState);
 	}
 
 	UFUNCTION(BlueprintOverride)

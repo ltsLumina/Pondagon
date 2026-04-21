@@ -15,7 +15,7 @@ class UCharSelectButton : UPondWidgetBase
     UFUNCTION(NotBlueprintCallable)
     private void OnClicked()
     {
-        auto PC = Cast<AScriptPondController>(GetOwningPlayer());
+        auto PC = Cast<APondMenuController>(GetOwningPlayer());
         PC.SetHero(HeroName);
     }
 }
